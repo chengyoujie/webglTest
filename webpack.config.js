@@ -3,7 +3,7 @@ var HtmlwebpackPlugin = require("html-webpack-plugin")
 var webpack = require("webpack")
 
 var RootPath = path.resolve(__dirname);
-var AppPath = path.join(RootPath, "src/Test.ts")
+var AppPath = path.join(RootPath, "src/Main.ts")
 var BuildPath = path.join(RootPath, "build")
 module.exports = {
     mode: "development",
@@ -18,10 +18,12 @@ module.exports = {
         rules: [{
             test: /\.tsx?$/,
             use: "ts-loader",
-            exclude: /node_modules/
+            exclude: [
+              /node_modules/,
+            ]
         }, 
         {
-            test:/\.(txt|vex|frag)$/,
+            test:/\.(txt|vert|frag)$/,
             use:"raw-loader"
         },
         {
@@ -31,10 +33,10 @@ module.exports = {
         ],
     },
     resolve: {
-        extensions: [".tsx", ".ts", ".js"]
+        extensions: [".tsx", ".ts", ".js", ".vert", ".frag", ".txt"]
     },
     devServer: {
-
+        open:true,
         port: 8978,
         liveReload: true,
         static: {
