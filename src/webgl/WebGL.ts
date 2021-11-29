@@ -11,9 +11,16 @@ import { Log } from "../utils/Log";
 
 
 export class WebGL{
-    
+    /**webGL程序 */
     private _program:WebGLProgram;
+    /**gl 对象 */
     private _gl:WebGLRenderingContext;
+    /**shader中用到的attribute属性  name需要和bindData中的数据对应 */
+    private _attribute:{[name:string]:AttributeData} = {};
+    /**索引数组数据 */
+    private _indexs:{data:WebGLBuffer, count:number} = {data:null, count:0};
+    /**shader 中用到的uniform 属性 */
+    private _unifrom:{[name:string]:UniformData} = {};
 
     constructor(gl:WebGLRenderingContext,vertexShader:string, fragmentShader:string){
         let s = this;
@@ -21,6 +28,7 @@ export class WebGL{
         this.initProgram(vertexShader,fragmentShader);
     }
 
+    /**初始化程序 */
     private initProgram(vertexShaderStr:string, fragmentShaderStr:string){
         let s = this;
         s._program = s._gl.createProgram();
@@ -63,10 +71,7 @@ export class WebGL{
         return shader;
     }
 
-    private _attribute:{[name:string]:{location:number, data:WebGLBuffer, count:number}} = {};
-    private _indexs:{data:WebGLBuffer, count:number} = {data:null, count:0};
-    private _unifrom:{[name:string]:{fun:(location:WebGLUniformLocation, ...data)=>void,location:WebGLUniformLocation, openParam:boolean, data:any}} = {};
-
+    /**绑定数据 */
     public bindData(renderData:ShaderParamData){
         let s = this;
         let gl = s._gl;
@@ -97,7 +102,7 @@ export class WebGL{
                 continue;
             }
             let idx = gl.getUniformLocation(s._program, name);
-            s._unifrom[name] = s.getUnifromFun(unifromData, idx, renderData[name]);
+            s._unifrom[name] = s.getUnifromInfo(unifromData, idx, renderData[name]);
             console.log(unifromData);
         }
         if(renderData.indexs){
@@ -108,6 +113,7 @@ export class WebGL{
         }
     }
 
+    /**获取Attribute的大小 */
     private getAttributeSize(type:number){
         let gl = this._gl;
         switch(type){
@@ -118,7 +124,8 @@ export class WebGL{
         return 1;
     }
 
-    private getUnifromFun(uniformInfo:WebGLActiveInfo, location:WebGLUniformLocation, data:any){
+    /**获取Uniform信息 */
+    private getUnifromInfo(uniformInfo:WebGLActiveInfo, location:WebGLUniformLocation, data:any){
         let s = this;
         let gl = s._gl;
         let fun:(location:WebGLUniformLocation, ...data)=>void;
@@ -172,18 +179,22 @@ export class WebGL{
         return {fun:fun, openParam:openParam, location:location, data:data}
     }
 
-    private uniformMatrix2fv(index:number, data:Float32List){
+    /**包装的unifromMatrix2fv 使其参数成为(location, data)*/
+    private uniformMatrix2fv(index:WebGLUniformLocation, data:Float32List){
         this._gl.uniformMatrix2fv(index, false, data);
     }
     
-    private uniformMatrix3fv(index:number, data:Float32List){
+    /**包装的unifromMatrix3fv 使其参数成为(location, data)*/
+    private uniformMatrix3fv(index:WebGLUniformLocation, data:Float32List){
         this._gl.uniformMatrix3fv(index, false, data);
     }
     
-    private uniformMatrix4fv(index:number, data:Float32List){
+    /**包装的unifromMatrix4fv 使其参数成为(location, data)*/
+    private uniformMatrix4fv(index:WebGLUniformLocation, data:Float32List){
         this._gl.uniformMatrix4fv(index, false, data);
     }
 
+    /**刷新数据 */
     public render(){
         let s = this;
         let gl = s._gl;
@@ -208,7 +219,6 @@ export class WebGL{
             if(data.openParam){
                 data.fun.call(gl, data.location, ...data.data);
             }else{
-                // gl.uniform1f(data.location, data.data);
                 data.fun.call(gl, data.location, data.data);
             }
         }
@@ -216,6 +226,7 @@ export class WebGL{
         gl.drawElements(gl.TRIANGLES, s._indexs.count, gl.UNSIGNED_BYTE, 0);
     }
 
+    /**创建Buffer */
     private createBuffer(data:any){
         let s = this;
         let buff = s._gl.createBuffer();
@@ -228,6 +239,7 @@ export class WebGL{
         return buff;
     }
 
+    /**创建索引Buffer */
     private createIndexBuffer(data:any){
         let s = this;
         let buff = s._gl.createBuffer();
@@ -262,4 +274,22 @@ export interface ShaderParamData{
     // attribute?:number[],
     indexs:number[];
     [propName:string]:any
+}
+
+/**
+ * 顶点数据类型
+ */
+export interface AttributeData{
+    location:number;
+    data:WebGLBuffer;
+    count:number
+}
+/**
+ * Unfirom变量数据类型
+ */
+export interface UniformData{
+    fun:(location:WebGLUniformLocation, ...data)=>void;
+    location:WebGLUniformLocation;
+    openParam:boolean;
+    data:any
 }

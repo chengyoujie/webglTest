@@ -18,13 +18,15 @@ export class Main{
         let gl = webglDiv.getContext("webgl")
         gl.viewport(0, 0, webglDiv.width, webglDiv.height);
         this._program = new WebGL(gl, vertexStr, fragmentStr);
-        this._program.bindData({
+        let data = {
             aPos:[-0.5,0.5, -0.5,-0.5,  0.5,-0.5, 0.5, 0.5],
             aColor:[0.0,0.1,1.0,   1.0,1.0, 1.0,   1.0, 0.0, 0.0, 1.0, 1.0, 0.4],
-            uTest:0.1,
-            uColor:[0.0, 0.0],
+            uTest:0.8,
+            uColor:[0.0, 1],
             indexs:[0,1,2,  0,2,3]
-        })
+        }
+        this._program.bindData(data);
+        
         this.update();
     }
 
