@@ -21,13 +21,17 @@ export class Main{
         this._program.bindData({
             aPos:[-0.5,0.5, -0.5,-0.5,  0.5,-0.5, 0.5, 0.5],
             aColor:[0.0,0.1,1.0,   1.0,1.0, 1.0,   1.0, 0.0, 0.0, 1.0, 1.0, 0.4],
+            uTest:0.1,
+            uColor:[0.0, 0.0],
             indexs:[0,1,2,  0,2,3]
         })
+        this.update();
     }
 
     update(){
         const render = ()=>{
             this._program.render();
+            requestAnimationFrame(render);
         }
         requestAnimationFrame(render);
     }

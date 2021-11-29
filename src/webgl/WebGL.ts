@@ -63,11 +63,15 @@ export class WebGL{
         return shader;
     }
 
+    private _attribute:{[name:string]:{location:number, data:WebGLBuffer, count:number}} = {};
+    private _indexs:{data:WebGLBuffer, count:number} = {data:null, count:0};
+    private _unifrom:{[name:string]:{fun:(location:WebGLUniformLocation, ...data)=>void,location:WebGLUniformLocation, openParam:boolean, data:any}} = {};
+
     public bindData(renderData:ShaderParamData){
         let s = this;
         let gl = s._gl;
         let activeAttribute = gl.getProgramParameter(s._program, gl.ACTIVE_ATTRIBUTES);
-        let attribute = {};
+        s._attribute = {};
         for(let i=0; i<activeAttribute; i++){
             let attribData = gl.getActiveAttrib(s._program, i);
             let name = attribData.name;
@@ -81,24 +85,26 @@ export class WebGL{
             if(!buff)continue;
             let idx = gl.getAttribLocation(s._program, name);
             let count = s.getAttributeSize(attribData.type);
-
-            gl.useProgram(s._program);
-            gl.clearColor(0, 0, 0, 1);
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            gl.bindBuffer(gl.ARRAY_BUFFER, buff);
-            gl.vertexAttribPointer(idx, count, gl.FLOAT, false, 0, 0);
-            gl.enableVertexAttribArray(idx);
-
-            attribute[name] = buff;
+            s._attribute[name] = {location:idx, data:buff, count:count};
             console.log(attribData);
+        }
+        let unifromNum = gl.getProgramParameter(s._program, gl.ACTIVE_UNIFORMS);
+        for(let i=0; i<unifromNum; i++){
+            let unifromData = gl.getActiveUniform(s._program, i);
+            let name = unifromData.name;
+            if(!renderData[name]){
+                Log.error("bindData 没有找到Unifrom: "+name+" 对应的数据");
+                continue;
+            }
+            let idx = gl.getUniformLocation(s._program, name);
+            s._unifrom[name] = s.getUnifromFun(unifromData, idx, renderData[name]);
+            console.log(unifromData);
         }
         if(renderData.indexs){
             let data = new Uint8Array(renderData.indexs);
             let buff = s.createIndexBuffer(data);
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buff);
-            gl.drawElements(gl.TRIANGLES, data.length, gl.UNSIGNED_BYTE, 0);
-        }else{
-
+            s._indexs.data = buff;
+            s._indexs.count = data.length;
         }
     }
 
@@ -112,8 +118,102 @@ export class WebGL{
         return 1;
     }
 
+    private getUnifromFun(uniformInfo:WebGLActiveInfo, location:WebGLUniformLocation, data:any){
+        let s = this;
+        let gl = s._gl;
+        let fun:(location:WebGLUniformLocation, ...data)=>void;
+        let openParam = true;
+        switch(uniformInfo.type){
+            case gl.FLOAT:
+                fun= gl.uniform1f;
+                openParam = false;
+                break;
+            case gl.FLOAT_VEC2:
+                fun=  gl.uniform2f;
+                break;
+            case gl.FLOAT_VEC3:
+                fun=  gl.uniform3f;
+                break;
+            case gl.FLOAT_VEC4:
+                fun=  gl.uniform4f;
+                break;
+            case gl.INT:
+            case gl.BOOL:
+            case gl.SAMPLER_2D:
+            case gl.SAMPLER_CUBE:
+                fun=  gl.uniform1i;
+                openParam = false;
+                break;
+            case gl.INT_VEC2:
+            case gl.BOOL_VEC2:
+                fun=  gl.uniform2i;
+                break;
+            case gl.INT_VEC3:
+            case gl.BOOL_VEC3:
+                fun=  gl.uniform3i;
+                break;
+            case gl.INT_VEC4:
+            case gl.BOOL_VEC4:
+                fun=  gl.uniform4i;
+                break;
+            case gl.FLOAT_MAT2:
+                fun=  s.uniformMatrix2fv;
+                openParam = false;
+                break;
+            case gl.FLOAT_MAT2:
+                fun=  s.uniformMatrix3fv;
+                openParam = false;
+                break;
+            case gl.FLOAT_MAT2:
+                fun=  s.uniformMatrix4fv;
+                openParam = false;
+                break;
+        }
+        return {fun:fun, openParam:openParam, location:location, data:data}
+    }
+
+    private uniformMatrix2fv(index:number, data:Float32List){
+        this._gl.uniformMatrix2fv(index, false, data);
+    }
+    
+    private uniformMatrix3fv(index:number, data:Float32List){
+        this._gl.uniformMatrix3fv(index, false, data);
+    }
+    
+    private uniformMatrix4fv(index:number, data:Float32List){
+        this._gl.uniformMatrix4fv(index, false, data);
+    }
+
     public render(){
+        let s = this;
+        let gl = s._gl;
         
+        gl.useProgram(s._program);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        let activeAttribute = gl.getProgramParameter(s._program, gl.ACTIVE_ATTRIBUTES);
+        for(let i=0; i<activeAttribute; i++){
+            let attribData = gl.getActiveAttrib(s._program, i);
+            let name = attribData.name;
+            let data = s._attribute[name];
+            gl.bindBuffer(gl.ARRAY_BUFFER, data.data);
+            gl.vertexAttribPointer(data.location, data.count, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(data.location);
+        }
+        let unifromNum = gl.getProgramParameter(s._program, gl.ACTIVE_UNIFORMS);
+        for(let i=0; i<unifromNum; i++){
+            let unifromData = gl.getActiveUniform(s._program, i);
+            let data = s._unifrom[unifromData.name];
+            if(data.openParam){
+                data.fun.call(gl, data.location, ...data.data);
+            }else{
+                // gl.uniform1f(data.location, data.data);
+                data.fun.call(gl, data.location, data.data);
+            }
+        }
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, s._indexs.data);
+        gl.drawElements(gl.TRIANGLES, s._indexs.count, gl.UNSIGNED_BYTE, 0);
     }
 
     private createBuffer(data:any){
@@ -160,6 +260,6 @@ export type ShaderDateType = Vec|Matrix|Float32Array|number;
 export interface ShaderParamData{
     // unifrom?:{[key:string]:ShaderDateType},
     // attribute?:number[],
-    indexs?:number[];
+    indexs:number[];
     [propName:string]:any
 }
