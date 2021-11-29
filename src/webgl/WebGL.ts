@@ -6,6 +6,7 @@ import { Matrix4 } from "../math/Matrix4";
 import { Vec2 } from "../math/Vec2";
 import { Vec3 } from "../math/Vec3";
 import { Vec4 } from "../math/Vec4";
+import { ComUtils } from "../utils/ComUtils";
 import { Log } from "../utils/Log";
 
 
@@ -18,9 +19,11 @@ export class WebGL{
     /**shader中用到的attribute属性  name需要和bindData中的数据对应 */
     private _attribute:{[name:string]:AttributeData} = {};
     /**索引数组数据 */
-    private _indexs:{data:WebGLBuffer, count:number} = {data:null, count:0};
+    private _indexs:IndexsData = {data:null, count:0, buff:null};
     /**shader 中用到的uniform 属性 */
     private _unifrom:{[name:string]:UniformData} = {};
+    /**是否发生改变 */
+    private _dirty = false;
 
     constructor(gl:WebGLRenderingContext,vertexShader:string, fragmentShader:string){
         let s = this;
@@ -31,21 +34,22 @@ export class WebGL{
     /**初始化程序 */
     private initProgram(vertexShaderStr:string, fragmentShaderStr:string){
         let s = this;
-        s._program = s._gl.createProgram();
+        let gl = s._gl;
+        s._program = gl.createProgram();
         let vertexShader = s.compileShader(ShaderType.VERTEX, vertexShaderStr);
         let fragmentShader = s.compileShader(ShaderType.FRAGMENT, fragmentShaderStr);
         if(!vertexShader || !fragmentShader){
-            s._gl.deleteShader(vertexShader);
-            s._gl.deleteShader(fragmentShader);
+            gl.deleteShader(vertexShader);
+            gl.deleteShader(fragmentShader);
             Log.error("ShaderProgram 初始化失败");
             return;
         }
-        s._gl.attachShader(s._program, vertexShader);
-        s._gl.attachShader(s._program, fragmentShader);
-        s._gl.linkProgram(s._program);
-        let status = s._gl.getProgramParameter(s._program, s._gl.LINK_STATUS);
+        gl.attachShader(s._program, vertexShader);
+        gl.attachShader(s._program, fragmentShader);
+        gl.linkProgram(s._program);
+        let status = gl.getProgramParameter(s._program, gl.LINK_STATUS);
         if(!status){
-            let err = s._gl.getProgramInfoLog(s._program);
+            let err = gl.getProgramInfoLog(s._program);
             Log.error("Shader 链接错误 "+err);
             return;
         }
@@ -54,18 +58,19 @@ export class WebGL{
     /**编译代码 */
     private compileShader(type:ShaderType, source:string){
         let s = this;
-        let shader = s._gl.createShader(type);
+        let gl = s._gl;
+        let shader = gl.createShader(type);
         if(!shader){
             Log.error("Shader 创建失败");
             return;
         }
-        s._gl.shaderSource(shader, source);
-        s._gl.compileShader(shader);
-        let status = s._gl.getShaderParameter(shader, s._gl.COMPILE_STATUS);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        let status = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
         if(!status){
-            let err = s._gl.getShaderInfoLog(shader);
+            let err = gl.getShaderInfoLog(shader);
             Log.error("Shader 编译失败"+err);
-            s._gl.deleteShader(shader);
+            gl.deleteShader(shader);
             return;
         }
         return shader;
@@ -90,7 +95,8 @@ export class WebGL{
             if(!buff)continue;
             let idx = gl.getAttribLocation(s._program, name);
             let count = s.getAttributeSize(attribData.type);
-            s._attribute[name] = {location:idx, data:buff, count:count};
+            s._attribute[name] = {location:idx, buff:buff, count:count};
+            ComUtils.bindData(renderData, name, s.handleAttributeChange, s);
             console.log(attribData);
         }
         let unifromNum = gl.getProgramParameter(s._program, gl.ACTIVE_UNIFORMS);
@@ -103,15 +109,45 @@ export class WebGL{
             }
             let idx = gl.getUniformLocation(s._program, name);
             s._unifrom[name] = s.getUnifromInfo(unifromData, idx, renderData[name]);
+            ComUtils.bindData(s._unifrom, name, s.handleUniformChange, s)
             console.log(unifromData);
         }
         if(renderData.indexs){
             let data = new Uint8Array(renderData.indexs);
             let buff = s.createIndexBuffer(data);
+            s._indexs.buff = buff;
             s._indexs.data = buff;
             s._indexs.count = data.length;
+            ComUtils.bindData(renderData, "indexs", s.handleIndexChange, s);
         }
     }
+
+    /**顶点数据发生改变 */
+    private handleAttributeChange(prop:string, newValue:any){
+        let s = this;
+        let data = s._attribute[prop];
+        if(!data)return;
+        data.changeData = newValue;
+        s._dirty = true;
+    }
+
+    
+    /**索引数据发生改变 */
+    private handleIndexChange(prop:string, newValue:any){
+        let s = this;
+        let data = s._indexs;
+        if(!data)return;
+        data.changeData = newValue;
+        s._dirty = true;
+    }
+
+    private handleUniformChange(prop:string, newValue:any){
+        let s = this;
+        let data = s._unifrom[prop];
+        if(!data)return;
+        s._dirty = true;
+    }
+
 
     /**获取Attribute的大小 */
     private getAttributeSize(type:number){
@@ -208,7 +244,11 @@ export class WebGL{
             let attribData = gl.getActiveAttrib(s._program, i);
             let name = attribData.name;
             let data = s._attribute[name];
-            gl.bindBuffer(gl.ARRAY_BUFFER, data.data);
+            gl.bindBuffer(gl.ARRAY_BUFFER, data.buff);
+            if(data.changeData){
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data.changeData), gl.DYNAMIC_DRAW);
+                data.changeData = null;
+            }
             gl.vertexAttribPointer(data.location, data.count, gl.FLOAT, false, 0, 0);
             gl.enableVertexAttribArray(data.location);
         }
@@ -222,33 +262,43 @@ export class WebGL{
                 data.fun.call(gl, data.location, data.data);
             }
         }
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, s._indexs.buff);
+        if(s._indexs.changeData)
+        {
+            let data = new Uint8Array(s._indexs.changeData);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+            s._indexs.changeData = null;
+        }
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, s._indexs.data);
         gl.drawElements(gl.TRIANGLES, s._indexs.count, gl.UNSIGNED_BYTE, 0);
+        s._dirty = false;
     }
 
     /**创建Buffer */
     private createBuffer(data:any){
         let s = this;
-        let buff = s._gl.createBuffer();
+        let gl = s._gl;
+        let buff = gl.createBuffer();
         if(!buff){
             Log.error("Buffer 创建失败");
             return;
         }
-        s._gl.bindBuffer(s._gl.ARRAY_BUFFER, buff);
-        s._gl.bufferData(s._gl.ARRAY_BUFFER, data, s._gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buff);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
         return buff;
     }
 
     /**创建索引Buffer */
     private createIndexBuffer(data:any){
         let s = this;
-        let buff = s._gl.createBuffer();
+        let gl = s._gl;
+        let buff = gl.createBuffer();
         if(!buff){
             Log.error("Index Buffer 创建失败");
             return;
         }
-        s._gl.bindBuffer(s._gl.ELEMENT_ARRAY_BUFFER, buff);
-        s._gl.bufferData(s._gl.ELEMENT_ARRAY_BUFFER, data, s._gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buff);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data, gl.STATIC_DRAW);
         return buff;
     }
 
@@ -281,8 +331,18 @@ export interface ShaderParamData{
  */
 export interface AttributeData{
     location:number;
+    buff:WebGLBuffer;
+    count:number;
+    changeData?:number[];
+}
+/**
+ * 索引数据类型
+ */
+export interface IndexsData{
     data:WebGLBuffer;
-    count:number
+    buff:WebGLBuffer;
+    count:number;
+    changeData?:number[];
 }
 /**
  * Unfirom变量数据类型

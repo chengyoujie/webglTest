@@ -26,7 +26,9 @@ export class Main{
             indexs:[0,1,2,  0,2,3]
         }
         this._program.bindData(data);
-        
+        data.uColor[0] = 1.0;
+        data.uColor[1] = 0.0;
+        // data.aPos = [-1.0,0.5, -0.5,-0.5,  0.5,-0.5, 0.5, 0.5],
         this.update();
     }
 
