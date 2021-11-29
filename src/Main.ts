@@ -10,17 +10,26 @@ export class Main{
     constructor(){
 
     }
+    private _program:WebGL;
 
     start(){
         let webglDiv = < HTMLCanvasElement>document.getElementById("webgl");
         Log.log("test")
         let gl = webglDiv.getContext("webgl")
-        let test = new WebGL(gl, vertexStr, fragmentStr);
-        console.log(test)
+        gl.viewport(0, 0, webglDiv.width, webglDiv.height);
+        this._program = new WebGL(gl, vertexStr, fragmentStr);
+        this._program.bindData({
+            aPos:[-0.5,0.5, -0.5,-0.5,  0.5,-0.5, 0.5, 0.5],
+            aColor:[0.0,0.1,1.0,   1.0,1.0, 1.0,   1.0, 0.0, 0.0, 1.0, 1.0, 0.4],
+            indexs:[0,1,2,  0,2,3]
+        })
     }
 
     update(){
-
+        const render = ()=>{
+            this._program.render();
+        }
+        requestAnimationFrame(render);
     }
 }
 window.onload = function(){
