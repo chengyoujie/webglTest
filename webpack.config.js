@@ -29,11 +29,15 @@ module.exports = {
         {
             test:/\.css$/,
             use:['style-loader', 'css-loader']
+        },
+        {
+            test:/\.(png|jpg)$/gi,
+            use:['file-loader']
         }
         ],
     },
     resolve: {
-        extensions: [".tsx", ".ts", ".js", ".vert", ".frag", ".txt"]
+        extensions: [".tsx", ".ts", ".js", ".vert", ".frag", ".txt", ".jpg", ".png"]
     },
     devServer: {
         open:true,

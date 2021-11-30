@@ -23,6 +23,8 @@ export class WebGL{
     private _indexs:IndexsData = {data:null, count:0, buff:null};
     /**shader 中用到的uniform 属性 */
     private _unifrom:{[name:string]:UniformData} = {};
+    /**缓存图片 */
+    private _cacheImage:{[url:string]:TexImageSource} = {};
     /**是否发生改变 */
     private _dirty = false;
 
@@ -111,12 +113,22 @@ export class WebGL{
         for(let i=0; i<unifromNum; i++){
             let unifromData = gl.getActiveUniform(s._program, i);
             let name = unifromData.name;
-            if(!renderData[name]){
+            let data = renderData[name];
+            if(!data){
                 Log.error("bindData 没有找到Unifrom: "+name+" 对应的数据");
                 continue;
             }
             let idx = gl.getUniformLocation(s._program, name);
-            s._unifrom[name] = s.getUnifromInfo(unifromData, idx, renderData[name]);
+            s._unifrom[name] = s.getUnifromInfo(unifromData, idx, data);
+            if(unifromData.type == gl.SAMPLER_2D || unifromData.type == gl.SAMPLER_CUBE){
+                if(typeof data == "string")
+                {
+                    s._unifrom[name].texure = s.createTexture(data)
+                }else{
+                    Log.error("bindData 图片格式必须使用字符串"+name);
+                    continue;
+                }
+            }
             ComUtils.bindData(renderData, name, s.handleUniformChange, s)
             console.log(unifromData);
         }
@@ -128,6 +140,7 @@ export class WebGL{
             s._indexs.count = data.length;
             ComUtils.bindData(renderData, "indexs", s.handleIndexChange, s);
         }
+        s._dirty = true;
     }
 
     /**顶点数据发生改变 */
@@ -157,6 +170,124 @@ export class WebGL{
     }
 
 
+    /**刷新数据 */
+    public render(){
+        let s = this;
+        let gl = s._gl;
+        
+        gl.useProgram(s._program);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        let activeAttribute = gl.getProgramParameter(s._program, gl.ACTIVE_ATTRIBUTES);
+        for(let i=0; i<activeAttribute; i++){
+            let attribData = gl.getActiveAttrib(s._program, i);
+            let name = attribData.name;
+            let data = s._attribute[name];
+            gl.bindBuffer(gl.ARRAY_BUFFER, data.buff);
+            if(data.changeData){
+                gl.bufferData(gl.ARRAY_BUFFER, data.changeData.getFloat32Array(), gl.DYNAMIC_DRAW);
+                data.changeData = null;
+            }
+            gl.vertexAttribPointer(data.location, data.count, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(data.location);
+        }
+        let unifromNum = gl.getProgramParameter(s._program, gl.ACTIVE_UNIFORMS);
+        for(let i=0; i<unifromNum; i++){
+            let unifromData = gl.getActiveUniform(s._program, i);
+            let data = s._unifrom[unifromData.name];
+            if(unifromData.type == gl.SAMPLER_2D || unifromData.type == gl.SAMPLER_CUBE){
+                s.renderTexture(data.texure, data.data as string);
+                data.fun.call(gl, data.location, 0);
+            }else{
+                if(data.openParam){
+                    let udata = data.data;
+                    if(udata instanceof GLArray)
+                    {
+                        data.fun.call(gl, data.location, ...udata.orginData);
+                    }else{
+                        Log.warn("请检查 unfirom 数据类型是否正确");
+                        data.fun.call(gl, data.location, udata);
+                    }
+                }else{
+                    data.fun.call(gl, data.location, data.data);
+                }
+            }
+            
+        }
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, s._indexs.buff);
+        if(s._indexs.changeData)
+        {
+            let data = s._indexs.changeData.getUnit8Array();
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+            s._indexs.changeData = null;
+        }
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, s._indexs.data);
+        gl.drawElements(gl.TRIANGLES, s._indexs.count, gl.UNSIGNED_BYTE, 0);
+        s._dirty = false;
+    }
+
+    private renderTexture(texture:WebGLTexture, imgUrl:string){
+        let s = this;
+        let gl = s._gl;
+        let img = s._cacheImage[imgUrl];
+        if(!img)return;
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
+
+    private createTexture(imgUrl:string){
+        let s = this;
+        let gl = s._gl;
+        let texture = gl.createTexture();
+        if(!texture){
+            Log.error("纹理创建失败");
+            return;
+        }
+        var img = new Image();
+        img.onload = function(){
+            s._cacheImage[imgUrl] = img;
+            s._dirty = true;
+        }
+        img.src = imgUrl;
+        return texture;
+    }
+
+    /**创建Buffer */
+    private createBuffer(data:any){
+        let s = this;
+        let gl = s._gl;
+        let buff = gl.createBuffer();
+        if(!buff){
+            Log.error("Buffer 创建失败");
+            return;
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, buff);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+        return buff;
+    }
+
+    /**创建索引Buffer */
+    private createIndexBuffer(data:any){
+        let s = this;
+        let gl = s._gl;
+        let buff = gl.createBuffer();
+        if(!buff){
+            Log.error("Index Buffer 创建失败");
+            return;
+        }
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buff);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data, gl.STATIC_DRAW);
+        return buff;
+    }
+
+    
     /**获取Attribute的大小 */
     private getAttributeSize(type:number){
         let gl = this._gl;
@@ -238,84 +369,6 @@ export class WebGL{
         this._gl.uniformMatrix4fv(index, false, data);
     }
 
-    /**刷新数据 */
-    public render(){
-        let s = this;
-        let gl = s._gl;
-        
-        gl.useProgram(s._program);
-        gl.clearColor(0, 0, 0, 1);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        let activeAttribute = gl.getProgramParameter(s._program, gl.ACTIVE_ATTRIBUTES);
-        for(let i=0; i<activeAttribute; i++){
-            let attribData = gl.getActiveAttrib(s._program, i);
-            let name = attribData.name;
-            let data = s._attribute[name];
-            gl.bindBuffer(gl.ARRAY_BUFFER, data.buff);
-            if(data.changeData){
-                gl.bufferData(gl.ARRAY_BUFFER, data.changeData.getFloat32Array(), gl.DYNAMIC_DRAW);
-                data.changeData = null;
-            }
-            gl.vertexAttribPointer(data.location, data.count, gl.FLOAT, false, 0, 0);
-            gl.enableVertexAttribArray(data.location);
-        }
-        let unifromNum = gl.getProgramParameter(s._program, gl.ACTIVE_UNIFORMS);
-        for(let i=0; i<unifromNum; i++){
-            let unifromData = gl.getActiveUniform(s._program, i);
-            let data = s._unifrom[unifromData.name];
-            if(data.openParam){
-                let udata = data.data;
-                if(udata instanceof GLArray)
-                {
-                    data.fun.call(gl, data.location, ...udata.orginData);
-                }else{
-                    Log.warn("请检查 unfirom 数据类型是否正确");
-                    data.fun.call(gl, data.location, udata);
-                }
-            }else{
-                data.fun.call(gl, data.location, data.data);
-            }
-        }
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, s._indexs.buff);
-        if(s._indexs.changeData)
-        {
-            let data = s._indexs.changeData.getUnit8Array();
-            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
-            s._indexs.changeData = null;
-        }
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, s._indexs.data);
-        gl.drawElements(gl.TRIANGLES, s._indexs.count, gl.UNSIGNED_BYTE, 0);
-        s._dirty = false;
-    }
-
-    /**创建Buffer */
-    private createBuffer(data:any){
-        let s = this;
-        let gl = s._gl;
-        let buff = gl.createBuffer();
-        if(!buff){
-            Log.error("Buffer 创建失败");
-            return;
-        }
-        gl.bindBuffer(gl.ARRAY_BUFFER, buff);
-        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-        return buff;
-    }
-
-    /**创建索引Buffer */
-    private createIndexBuffer(data:any){
-        let s = this;
-        let gl = s._gl;
-        let buff = gl.createBuffer();
-        if(!buff){
-            Log.error("Index Buffer 创建失败");
-            return;
-        }
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buff);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data, gl.STATIC_DRAW);
-        return buff;
-    }
 
 }
 /**
@@ -338,7 +391,7 @@ export interface ShaderParamData{
     // unifrom?:{[key:string]:ShaderDateType},
     // attribute?:number[],
     indexs:GLArray;
-    [propName:string]:GLArray|number|boolean;
+    [propName:string]:GLArray|number|boolean|string;
 }
 
 /**
@@ -366,5 +419,6 @@ export interface UniformData{
     fun:(location:WebGLUniformLocation, ...data)=>void;
     location:WebGLUniformLocation;
     openParam:boolean;
-    data:GLArray|number|boolean
+    texure?:WebGLTexture;
+    data:GLArray|number|boolean|string;
 }

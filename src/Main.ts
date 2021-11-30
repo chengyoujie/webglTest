@@ -2,12 +2,11 @@ import vertexStr from "./shader/common.vert"
 import fragmentStr from "./shader/common.frag"
 import "./css/test.css"
 import { Log } from "./utils/Log";
-import { WebGL } from "./webgl/WebGL";
+import { ShaderParamData, WebGL } from "./webgl/WebGL";
 import { GLArray } from "./utils/GLArray";
 import { bind } from "./utils/Decorate";
-// console.log(txt);
-// let web = document.getElementById("webgl")
-// if(web)web.innerText = txt;
+import testImg from "./res/sky.jpg"
+
 export class Main{
     constructor(){
 
@@ -20,10 +19,12 @@ export class Main{
         let gl = webglDiv.getContext("webgl")
         gl.viewport(0, 0, webglDiv.width, webglDiv.height);
         this._program = new WebGL(gl, vertexStr, fragmentStr);
-        let data = {
+        let data:ShaderParamData = {
             aPos:new GLArray([-0.5,0.5, -0.5,-0.5,  0.5,-0.5, 0.5, 0.5]),
             aColor:new GLArray([0.0,0.1,1.0,   1.0,1.0, 1.0,   1.0, 0.0, 0.0, 1.0, 1.0, 0.4]),
+            aUv:new GLArray([0.0,1.0, 0.0, 0.0,   1.0, 0.0,  1.0, 1.0]),
             uTest:0.8,
+            uSampler:testImg,
             uColor:new GLArray([0.0, 1]),
             indexs:new GLArray([0,1,2,  0,2,3])
         }
