@@ -7,6 +7,7 @@ import { Vec2 } from "../math/Vec2";
 import { Vec3 } from "../math/Vec3";
 import { Vec4 } from "../math/Vec4";
 import { ComUtils } from "../utils/ComUtils";
+import { GLArray } from "../utils/GLArray";
 import { Log } from "../utils/Log";
 
 
@@ -90,8 +91,15 @@ export class WebGL{
                 Log.error("bindData 没有找到Attribute: "+attribData.name+" 对应的数组");
                 continue;
             }
-            let data = new Float32Array(renderData[name])
-            let buff = s.createBuffer(data);
+            let data = renderData[name];
+            let arr:Float32Array;
+            if(data instanceof GLArray)
+            {
+                arr = data.getFloat32Array();
+            }else{
+                Log.error("顶点着色器中 "+name+" 必须使用GLArray")
+            }
+            let buff = s.createBuffer(arr);
             if(!buff)continue;
             let idx = gl.getAttribLocation(s._program, name);
             let count = s.getAttributeSize(attribData.type);
@@ -109,11 +117,11 @@ export class WebGL{
             }
             let idx = gl.getUniformLocation(s._program, name);
             s._unifrom[name] = s.getUnifromInfo(unifromData, idx, renderData[name]);
-            ComUtils.bindData(s._unifrom, name, s.handleUniformChange, s)
+            ComUtils.bindData(renderData, name, s.handleUniformChange, s)
             console.log(unifromData);
         }
         if(renderData.indexs){
-            let data = new Uint8Array(renderData.indexs);
+            let data = renderData.indexs.getUnit8Array();;
             let buff = s.createIndexBuffer(data);
             s._indexs.buff = buff;
             s._indexs.data = buff;
@@ -246,7 +254,7 @@ export class WebGL{
             let data = s._attribute[name];
             gl.bindBuffer(gl.ARRAY_BUFFER, data.buff);
             if(data.changeData){
-                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data.changeData), gl.DYNAMIC_DRAW);
+                gl.bufferData(gl.ARRAY_BUFFER, data.changeData.getFloat32Array(), gl.DYNAMIC_DRAW);
                 data.changeData = null;
             }
             gl.vertexAttribPointer(data.location, data.count, gl.FLOAT, false, 0, 0);
@@ -257,7 +265,14 @@ export class WebGL{
             let unifromData = gl.getActiveUniform(s._program, i);
             let data = s._unifrom[unifromData.name];
             if(data.openParam){
-                data.fun.call(gl, data.location, ...data.data);
+                let udata = data.data;
+                if(udata instanceof GLArray)
+                {
+                    data.fun.call(gl, data.location, ...udata.orginData);
+                }else{
+                    Log.warn("请检查 unfirom 数据类型是否正确");
+                    data.fun.call(gl, data.location, udata);
+                }
             }else{
                 data.fun.call(gl, data.location, data.data);
             }
@@ -265,7 +280,7 @@ export class WebGL{
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, s._indexs.buff);
         if(s._indexs.changeData)
         {
-            let data = new Uint8Array(s._indexs.changeData);
+            let data = s._indexs.changeData.getUnit8Array();
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
             s._indexs.changeData = null;
         }
@@ -322,8 +337,8 @@ export type ShaderDateType = Vec|Matrix|Float32Array|number;
 export interface ShaderParamData{
     // unifrom?:{[key:string]:ShaderDateType},
     // attribute?:number[],
-    indexs:number[];
-    [propName:string]:any
+    indexs:GLArray;
+    [propName:string]:GLArray|number|boolean;
 }
 
 /**
@@ -333,7 +348,7 @@ export interface AttributeData{
     location:number;
     buff:WebGLBuffer;
     count:number;
-    changeData?:number[];
+    changeData?:GLArray;
 }
 /**
  * 索引数据类型
@@ -342,7 +357,7 @@ export interface IndexsData{
     data:WebGLBuffer;
     buff:WebGLBuffer;
     count:number;
-    changeData?:number[];
+    changeData?:GLArray;
 }
 /**
  * Unfirom变量数据类型
@@ -351,5 +366,5 @@ export interface UniformData{
     fun:(location:WebGLUniformLocation, ...data)=>void;
     location:WebGLUniformLocation;
     openParam:boolean;
-    data:any
+    data:GLArray|number|boolean
 }
