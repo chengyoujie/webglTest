@@ -10,5 +10,11 @@ declare module  "*.frag"{
     export = contents;
 }
 /**图片 */
-declare module  "*.jpg"
-declare module  "*.png"
+declare module  "*.jpg"{
+    const contents:any;
+    export = contents;
+}
+declare module  "*.png"{
+    const contents:any;
+    export = contents;
+}

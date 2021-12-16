@@ -24,9 +24,20 @@ export class WebGL{
     /**shader 中用到的uniform 属性 */
     private _unifrom:{[name:string]:UniformData} = {};
     /**缓存图片 */
-    private _cacheImage:{[url:string]:TexImageSource} = {};
+    private _cacheImage:{[unifromName:string]:TexImageSource} = {};
     /**是否发生改变 */
     private _dirty = false;
+
+    // ---
+    /**帧缓存的buffer */
+    private _frameBuffer:WebGLFramebuffer;
+    /**帧缓存的texture */
+    private _frameTexture:WebGLTexture;
+    /**帧缓存的宽度 */
+    private _frameBufferW :number;
+    /**帧缓存的高度 */
+    private _frameBufferH:number;
+
 
     constructor(gl:WebGLRenderingContext,vertexShader:string, fragmentShader:string){
         let s = this;
@@ -83,6 +94,13 @@ export class WebGL{
     public bindData(renderData:ShaderParamData){
         let s = this;
         let gl = s._gl;
+        if(renderData.framebuffer){
+            s._frameBufferW = renderData.framebuffer.framebufferW;
+            s._frameBufferH = renderData.framebuffer.framebufferH;
+            let frame = s.initFrameBuffer();
+            s._frameBuffer = frame.buff;
+            s._frameTexture = frame.texture;
+        }
         let activeAttribute = gl.getProgramParameter(s._program, gl.ACTIVE_ATTRIBUTES);
         s._attribute = {};
         for(let i=0; i<activeAttribute; i++){
@@ -121,9 +139,9 @@ export class WebGL{
             let idx = gl.getUniformLocation(s._program, name);
             s._unifrom[name] = s.getUnifromInfo(unifromData, idx, data);
             if(unifromData.type == gl.SAMPLER_2D || unifromData.type == gl.SAMPLER_CUBE){
-                if(typeof data == "string")
+                if(data)
                 {
-                    s._unifrom[name].texure = s.createTexture(data)
+                    s._unifrom[name].texure = s.createTexture(name, data as TexImageSource)
                 }else{
                     Log.error("bindData 图片格式必须使用字符串"+name);
                     continue;
@@ -173,15 +191,13 @@ export class WebGL{
     /**刷新数据 */
     public render(){
         let s = this;
+        if(!s._dirty)return;
         let gl = s._gl;
         
         gl.useProgram(s._program);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-        gl.clearColor(0, 0, 0, 1);
-        gl.clear(gl.COLOR_BUFFER_BIT);
 
         let activeAttribute = gl.getProgramParameter(s._program, gl.ACTIVE_ATTRIBUTES);
+        let textureIdx = 0;
         for(let i=0; i<activeAttribute; i++){
             let attribData = gl.getActiveAttrib(s._program, i);
             let name = attribData.name;
@@ -199,8 +215,10 @@ export class WebGL{
             let unifromData = gl.getActiveUniform(s._program, i);
             let data = s._unifrom[unifromData.name];
             if(unifromData.type == gl.SAMPLER_2D || unifromData.type == gl.SAMPLER_CUBE){
-                s.renderTexture(data.texure, data.data as string);
-                data.fun.call(gl, data.location, 0);
+                gl.activeTexture(gl.TEXTURE0+textureIdx);
+                s.renderTexture(data.texure,  unifromData.name);
+                data.fun.call(gl, data.location, textureIdx);
+                textureIdx ++;
             }else{
                 if(data.openParam){
                     let udata = data.data;
@@ -215,7 +233,7 @@ export class WebGL{
                     data.fun.call(gl, data.location, data.data);
                 }
             }
-            
+
         }
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, s._indexs.buff);
         if(s._indexs.changeData)
@@ -225,14 +243,91 @@ export class WebGL{
             s._indexs.changeData = null;
         }
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, s._indexs.data);
-        gl.drawElements(gl.TRIANGLES, s._indexs.count, gl.UNSIGNED_BYTE, 0);
+        if(s._indexs.count<3)
+        {
+            gl.drawElements(gl.POINTS, s._indexs.count, gl.UNSIGNED_BYTE, 0);
+        }else{
+            gl.drawElements(gl.TRIANGLES, s._indexs.count, gl.UNSIGNED_BYTE, 0);
+        }
         s._dirty = false;
+        
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.useProgram(null);
     }
 
-    private renderTexture(texture:WebGLTexture, imgUrl:string){
+    /**
+     * 再后台渲染到一张图片上
+     */
+    private initFrameBuffer(){
         let s = this;
         let gl = s._gl;
-        let img = s._cacheImage[imgUrl];
+        let renderWidth = 1024;
+        let renderHiehgt = 1024;
+        let frameBuff = gl.createFramebuffer();
+        if(!frameBuff){
+            Log.warn("Frame Buffer 创建失败");
+            return;
+        }
+        let texture = gl.createTexture();//纹理对象
+        if(!texture){
+            Log.warn("Frame Buffer 创建纹理失败");
+            return;
+        }
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, renderWidth, renderHiehgt, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        //缓冲区
+        let renderBuffer = gl.createRenderbuffer();
+        if(!renderBuffer){
+            Log.warn("渲染缓冲区创建失败");
+            return;
+        }
+        gl.bindRenderbuffer(gl.RENDERBUFFER, renderBuffer);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, renderWidth, renderHiehgt);
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuff);
+        //将纹理指定为镇缓冲区的颜色关联对象
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+        //将渲染缓冲区指定为帧的深度关联对象
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderBuffer);
+        //检查
+        let frameStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+        if(frameStatus != gl.FRAMEBUFFER_COMPLETE){
+            Log.warn("Frame Buffer is Complete "+frameStatus.toString());
+            return;
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+        return {buff:frameBuff, texture:texture};
+    }
+
+    public renderOnTexture(){
+        let s = this;
+        if(!s._frameBuffer){
+            Log.warn("没有初始化frameBuffer");
+            return;
+        }
+        let gl = s._gl;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, s._frameBuffer);
+        gl.viewport(0, 0, s._frameBufferW, s._frameBufferH);
+        gl.clearColor(0.0, 0.4, 0.6, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        s.render();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+
+
+
+    private renderTexture(texture:WebGLTexture, unifromName:string){
+        let s = this;
+        let gl = s._gl;
+        let img = s._cacheImage[unifromName];
         if(!img)return;
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img)
@@ -242,7 +337,7 @@ export class WebGL{
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     }
 
-    private createTexture(imgUrl:string){
+    private createTexture(uniformName:string, imgUrl:TexImageSource|string){
         let s = this;
         let gl = s._gl;
         let texture = gl.createTexture();
@@ -250,12 +345,17 @@ export class WebGL{
             Log.error("纹理创建失败");
             return;
         }
-        var img = new Image();
-        img.onload = function(){
-            s._cacheImage[imgUrl] = img;
-            s._dirty = true;
+        if(typeof imgUrl == "string")
+        {
+            var img = new Image();
+            img.onload = function(){
+                s._cacheImage[uniformName] = img;
+                s._dirty = true;
+            }
+            img.src = imgUrl;
+        }else{
+            s._cacheImage[uniformName] = imgUrl;
         }
-        img.src = imgUrl;
         return texture;
     }
 
@@ -391,7 +491,16 @@ export interface ShaderParamData{
     // unifrom?:{[key:string]:ShaderDateType},
     // attribute?:number[],
     indexs:GLArray;
-    [propName:string]:GLArray|number|boolean|string;
+    framebuffer?:FramebufferData;
+    [propName:string]:GLArray|number|boolean|string|FramebufferData|TexImageSource;
+}
+
+/**
+ * 使用帧缓存是的参数
+ */
+export interface FramebufferData{
+    framebufferW:2|4|8|16|32|64|128|256|512|1024|2048;
+    framebufferH:2|4|8|16|32|64|128|256|512|1024|2048;
 }
 
 /**
