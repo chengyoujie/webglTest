@@ -191,7 +191,7 @@ export class WebGL{
     /**刷新数据 */
     public render(){
         let s = this;
-        if(!s._dirty)return;
+        // if(!s._dirty)return;
         let gl = s._gl;
         
         gl.useProgram(s._program);

@@ -13,6 +13,11 @@ import testImg from "./res/bg.jpg";
 import ranImg from "./res/raindrop.png";
 import dropAlpha from "./res/drop-alpha.png";
 import dropColor from "./res/drop-color.png";
+import { Rain } from "./rain/Rain"
+import { ComUtils } from "./utils/ComUtils"
+import { app } from "./Main"
+import { ImageName } from "./App"
+import { RainDrop } from "./rain/RainDrop"
 const Drop={
     x:0,
     y:0,
@@ -33,27 +38,22 @@ export class Test{
 
     }
     private dropsGfx:any[] = [];
-    private imgDic = {};
 
     start(){
-        
-        let imgs = [{name:"bg", src:testImg}, {name:"dropAlpha", src:dropAlpha}, {name:"dropColor", src:dropColor}];
-        this.loadImages(imgs).then(()=>{
-            this.runTest();
-        })
-
-
+        this.runTest();
     }
 
     private runTest(){
         let s = this;
         let test = document.getElementById("test");
-        let dropAlphaImg = s.imgDic["dropAlpha"];
-        let dropColorImg = s.imgDic["dropColor"];
+        test.style.cssText = "display: inline-flex";
+        //绘制雨滴
+        let dropAlphaImg = app.getImage(ImageName.RAIN_ALPHA_IMG)
+        let dropColorImg = app.getImage(ImageName.RAIN_COLOR_IMG)
         let dropSize = 120;
         let dropBuffer = this.createCanvas(dropSize, dropSize);
         let dropBufferCtx = dropBuffer.getContext("2d");
-
+      
         let drop = this.createCanvas(dropSize, dropSize);
         let dropCtx = drop.getContext("2d");
 
@@ -72,7 +72,26 @@ export class Test{
         dropCtx.globalCompositeOperation = "source-in";
         dropCtx.drawImage(dropBuffer, 0, 0, dropSize, dropSize);
 
+        s.drawLine(test);
         test.appendChild(drop)
+        //绘制Rain
+        s.drawLine(test);
+        let rain = new Rain(100);
+        test.appendChild(rain.canvas);
+        //绘制清除雨滴的canvas
+        s.drawLine(test);
+        let clearEle = document.createElement("canvas");
+        let clearRainCtx = clearEle.getContext("2d")
+        clearRainCtx.fillStyle = "#000";
+        clearRainCtx.beginPath();
+        clearRainCtx.arc(app.rainSize, app.rainSize, app.rainSize, 0, Math.PI*2);
+        clearRainCtx.fill();
+        test.appendChild(clearEle);
+
+        //raindrop画布
+        s.drawLine(test);
+        let rainDrop = new RainDrop(300, 300);
+        test.appendChild(rainDrop.canvas)
     }
 
     drawDrop(ctx,drop){
@@ -104,6 +123,13 @@ export class Test{
         }
       }
 
+      drawLine(context:Element){
+        let line = document.createElement("div");
+        line.style.cssText = "width: 3px;height: 120px;background-color: #000000;"
+        context.appendChild(line);
+        return line;
+      }
+
 
     createCanvas(width,height){
         let canvas=document.createElement("canvas");
@@ -113,30 +139,6 @@ export class Test{
       }
 
 
-    loadImages(images:{name:string, src:string}[]){
-        return Promise.all(
-                images.map(
-                    (src, i)=>{
-                        return this.loadOneImg(images[i]);
-                    }
-                )
-            );
-    }
-
-    loadOneImg(info:{name:string, src:string}){
-        let s = this;
-        return new Promise((resolve:(value:any)=>void, reject:(reason?:any)=>void)=>{
-            var img = new Image();
-            img.onload = function(){
-                s.imgDic[info.name] = img;
-               resolve(img);
-            }
-            img.onerror = function(){
-                reject("加载错误"+info.src);
-            }
-            img.src = info.src;
-
-        })
-    }
+    
 
 }
