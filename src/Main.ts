@@ -5,6 +5,5 @@ import { App } from "./App";
 export let app:App;
 window.onload = function(){
     app = new App();
-    app.run();
-    
+    app.run(<HTMLCanvasElement>document.getElementById("webgl"));
 }

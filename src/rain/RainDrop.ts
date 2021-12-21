@@ -1,21 +1,23 @@
 import { app } from "../Main";
 import { ComUtils } from "../utils/ComUtils";
 import { Rain } from "./Rain";
-
+/**
+ * 雨滴生成器
+ */
 export class RainDrop{
     /**要输出的canvas */
     public canvas:HTMLCanvasElement;
     /**canvas的2d渲染 */
     public canvasCtx:CanvasRenderingContext2D;
-    /**雨滴效果的canvas */
-    private rainCanvas:HTMLCanvasElement;
-    /**雨滴效果的context2d */
-    private rainCtx:CanvasRenderingContext2D;
+    /** 小水滴的canvas */
+    private dropletCanvas:HTMLCanvasElement;
+    /**小水滴的context2d */
+    private dropletCtx:CanvasRenderingContext2D;
     /**清除雨滴的canvas 相当于抹布 */
     private clearRainCanvas:HTMLCanvasElement;
 
-    private width:number;
-    private height:number;
+    public width:number;
+    public height:number;
     /**雨滴 */
     private rains:Rain[];
     /**小雨滴 */
@@ -30,8 +32,8 @@ export class RainDrop{
         s.height = height;
         s.canvas = ComUtils.createCanvas(width, height);
         s.canvasCtx = s.canvas.getContext("2d");
-        s.rainCanvas = ComUtils.createCanvas(width, height);
-        s.rainCtx = s.rainCanvas.getContext("2d");
+        s.dropletCanvas = ComUtils.createCanvas(width, height);
+        s.dropletCtx = s.dropletCanvas.getContext("2d");
         s.rains = [];
         s.droplets = [];
         s._options = {
@@ -57,6 +59,21 @@ export class RainDrop{
         clearRainCtx.arc(app.rainSize, app.rainSize, app.rainSize, 0, Math.PI*2);//x,y,r, startAngle, endAngle
         clearRainCtx.fill();
     }
+    /**
+     * 重新设置界面的宽高
+     * @param width 
+     * @param height 
+     */
+    public resize(width:number, height:number){
+        let s = this;
+        s.canvasCtx.clearRect(0, 0, s.width, s.height);//将之前的屏幕内容清除
+        s.width = width;
+        s.height = height;
+        s.canvas.width = width;
+        s.canvas.height = height;
+        s.dropletCanvas.width = width;
+        s.dropletCanvas.height = height;
+    }
 
     public update(){
         let s = this;
@@ -68,22 +85,20 @@ export class RainDrop{
     private updateRain(){
         let s = this;
         //更新小雨滴的显示
-        let rainCounter = 10;
+        let rainCounter = 40;//每帧添加小雨滴的个数
         for(let i=0; i<rainCounter; i++){
-            this.drawDrop(s.rainCtx, ComUtils.random(s.width), ComUtils.random(s.height), ComUtils.random(3, 5.5, (n)=>n*n));
-            // console.log("雨滴落在： "+rain.x+", "+rain.y)
-            // s.rainCtx.drawImage(rain.canvas, rain.x-rain.size, rain.y-rain.size, rain.size*2, rain.size*2);
-            s.canvasCtx.drawImage(s.rainCanvas, 0, 0, s.width, s.height);
+            this.drawDrop(s.dropletCtx, ComUtils.random(s.width), ComUtils.random(s.height), ComUtils.random(3, 5.5, (n)=>n*n));
         }
+        s.canvasCtx.drawImage(s.dropletCanvas, 0, 0, s.width, s.height);
         //更新雨滴的显示
         let count = 0;
-        let rainLimit = 3;//每次最多出现的雨滴个数
+        let rainLimit = 5;//每次最多出现的雨滴个数
         while(ComUtils.random()<=0.3 && count<rainLimit){
             count ++;
             let r = ComUtils.random(s._options.rainSize.min, s._options.rainSize.max, n=>n*n);
             if(s.rains.length>s._options.maxRains)break;
-            let rain = Rain.getRain(5);
-            rain.reset(ComUtils.random(s.width), ComUtils.random(s.height), r);
+            let rain = Rain.getRain(10);
+            rain.set(ComUtils.random(s.width), ComUtils.random(s.height), r);
             rain.momentum = 1+(rain.size-s._options.rainSize.min)/s._sizeDelt*0.1+ComUtils.random(2);
             s.rains.push(rain);
         }
@@ -107,7 +122,7 @@ export class RainDrop{
                 rain.lastSpawn += 1;
                 if(rain.lastSpawn > rain.nextSpawn && s._options.maxRains>s.rains.length){
                     let trailRain = Rain.getRain(5);
-                    trailRain.reset(
+                    trailRain.set(
                         rain.x+ComUtils.random(-rain.size, rain.size),
                         rain.y-(rain.size*0.01),
                         rain.size*ComUtils.random(0.2, 0.5)
@@ -148,8 +163,8 @@ export class RainDrop{
             }
             if(!rain.killed){
                 //清除小雨滴
-                s.rainCtx.globalCompositeOperation = "destination-out";
-                s.rainCtx.drawImage(s.clearRainCanvas, rain.x-rain.size, rain.y-rain.size, rain.size/2, rain.size/2);
+                s.dropletCtx.globalCompositeOperation = "destination-out";
+                s.dropletCtx.drawImage(s.clearRainCanvas, rain.x-rain.size, rain.y-rain.size, rain.size/2, rain.size/2);
                 //显示雨滴
                 s.canvasCtx.drawImage(rain.canvas, rain.x, rain.y, rain.size, rain.size);
                 newRains.push(rain);
@@ -163,7 +178,6 @@ export class RainDrop{
     private drawDrop(ctx:CanvasRenderingContext2D, x:number, y:number, size:number){
         let s = this;
         if(s.droplets.length>0){
-
             let rang = ComUtils.range((size-s._options.rainSize.min)/s._sizeDelt, 0, 1);
             rang = Math.floor(rang*(s.droplets.length-1));
 

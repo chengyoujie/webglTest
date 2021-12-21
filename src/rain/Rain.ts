@@ -16,19 +16,22 @@ export class Rain{
     public momentum:number = 0;
     /**蒸发 缩水*/
     public shrink:number = 0;
-    /**上次产卵的位置 */
+    /**上次产卵(子水滴)的位置 */
     public lastSpawn:number = 0;
-    /**下次产卵的位置 */
+    /**下次产卵(子水滴)的位置 */
     public nextSpawn:number = 0;
     /**父雨滴，及从哪个雨滴上生成的 */
     public parent:Rain;
     public killed:boolean = false;
     /**是否是新产生的 */
     public isNew = false;
-
+    
+    public static count = 0;
 
     constructor(index:number){
         let s = this;
+        Rain.count ++;
+        console.log("生成第 "+Rain.count+" 个新水滴")
         s.index = index;
         s.killed = false;
         s.isNew = true;
@@ -36,6 +39,7 @@ export class Rain{
         s.init();
     }
 
+    /**初始化水珠界面 */
     private init(){
         let s = this;
         let rainCtx = s.canvas.getContext("2d");
@@ -57,13 +61,22 @@ export class Rain{
         rainCtx.drawImage(buffEle, 0, 0, app.rainSize, app.rainSize);
     }
 
-    public reset(x:number, y:number, size:number){
+    /**
+     * 设置水珠的基本信息
+     * @param x 
+     * @param y 
+     * @param size 
+     * @returns 
+     */
+    public set(x:number, y:number, size:number){
         let s = this;
+        if(s.killed)return;
         s.x = x;
         s.y = y;
         s.size = size;
     }
 
+    /**销毁掉，放到回收池中 */
     public destory(){
         let s = this;
         s.killed = true;
@@ -80,8 +93,13 @@ export class Rain{
         Rain._rains.push(s);
     }
 
-
+    /**雨滴的缓存池 */
     private static _rains:Rain[] = [];
+    /**
+     * 获得新的雨滴
+     * @param index 
+     * @returns 
+     */
     public static getRain(index:number){
         let rain:Rain;
         if(Rain._rains.length>0){

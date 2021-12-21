@@ -1,6 +1,7 @@
 import { ComUtils } from "./utils/ComUtils";
 import bgImg from "./res/bg.jpg";
 import bg2Img from "./res/bg2.jpg";
+import bg3Img from "./res/bg3.png";
 import skyImg from "./res/sky.jpg";
 import ranImg from "./res/raindrop.png";
 import dropAlphaImg from "./res/drop-alpha.png";
@@ -14,19 +15,31 @@ import blurFragStr from "./shader/blur.frag"
 import rainVertexStr from "./shader/rain.vert"
 import rainFragStr from "./shader/rain.frag"
 import { GLArray } from "./utils/GLArray";
-import { Test } from "./TestOld";
+import { Test } from "./Test";
 import { app } from "./Main";
-import { RainDrop } from "./rain/RainDrop";
+import { RainDrop, RainDropOptins } from "./rain/RainDrop";
+import { Rain } from "./rain/Rain";
 
 
 export class App{
 
-    
+    /**主canvas的weggl  */
     private _gl:WebGLRenderingContext;
+    /**所有的webgl 程序 */
     private _programs:WebGL[] = [];
+    /**初始化时已经加载图片的字典 */
     private imgDic:{[name:string]:HTMLImageElement} = {};
-    public width:number = 800;
-    public height:number = 800;
+    /**canvas的宽度 */
+    private _width:number = 800;
+    /**canvas的高度 */
+    private _height:number = 800;
+    /**主canvas */
+    private _mainCanvas:HTMLCanvasElement;
+    /**雨滴生成器 */
+    private _rainDrop:RainDrop;
+    /**shader的数据类 */
+    private _rainShaderData:ShaderParamData;
+
     public rainSize = 64;
 
     constructor(){
@@ -34,8 +47,9 @@ export class App{
     }
 
 
-    public run(){
+    public run(canvas:HTMLCanvasElement){
         let s = this;
+        s._mainCanvas = canvas;
         let imgs = [
             {name:ImageName.BG_IMG, src:bgImg}, 
             {name:ImageName.RAIN_ALPHA_IMG, src:dropAlphaImg}, 
@@ -48,44 +62,56 @@ export class App{
     }
 
     private start(){
-        let webglDiv = < HTMLCanvasElement>document.getElementById("webgl");
-        Log.log("test")
-        let gl = webglDiv.getContext("webgl");
+        let s = this;
+        let gl = s._mainCanvas.getContext("webgl");
         this._gl = gl;
-        app.width = webglDiv.width;
-        app.height = webglDiv.height;
-        gl.viewport(0, 0, webglDiv.width, webglDiv.height);
+        s._width = s._mainCanvas.width;
+        s._height = s._mainCanvas.height;
+        gl.viewport(0, 0, s._mainCanvas.width, s._mainCanvas.height);
         let rainProgram = new WebGL(gl, rainVertexStr, rainFragStr);
-        let rainDrop = new RainDrop(app.width, app.height);
+        s._rainDrop = new RainDrop(s.width, s.height);
         
-        let rainData:ShaderParamData = {
+        // let raa = new Rain(255);
+        s._rainShaderData = {
             aPos:new GLArray([-1.0,1.0, -1.0,-1.0,  1.0,-1.0, 1.0, 1.0]),
             aUv:new GLArray([0.0,1.0, 0.0, 0.0,   1.0, 0.0,  1.0, 1.0]),
-            uBgSampler:bg2Img,
-            uMainSampler:rainDrop.canvas,
-            uSize:new GLArray([800, 800]),
+            uBgSampler:bg3Img,
+            uRainSampler:s._rainDrop.canvas,
+            uSize:new GLArray([s.width, s.height]),
             indexs:new GLArray([0,1,2,  0,2,3])
         }
-        rainProgram.bindData(rainData);
+        rainProgram.bindData(s._rainShaderData);
         this._programs.push(rainProgram);
-
         this.update();
-        //test
+
+
+        //test 测试界面
         let test = new Test();
         test.start();
     }
+    /**
+     * 重新设置界面宽高
+     * @param width 
+     * @param height 
+     */
+    public resize(width:number, height:number){
+        let s = this;
+        s._width = width;
+        s._height = height;
+        s._mainCanvas.width = s.width;
+        s._mainCanvas.height = s.height;
+        s._gl.viewport(0, 0, s.width, s.height);
+        s._rainDrop.resize(s.width,s.height)  
+        let sz:GLArray = s._rainShaderData.uSize as GLArray;
+        sz.setValue(0, s.width);
+        sz.setValue(1, s.height);
+    }
 
-    
+
+    /**刷新界面 */
     private update(){
         let s = this;
-        let gl = s._gl;
         const render = ()=>{
-            // gl.clearColor(0, 0, 0, 1);
-            // gl.clear(gl.COLOR_BUFFER_BIT);
-            gl.enable(gl.BLEND);
-            // if(s._indexs.count<3)
-            // gl.blendFunc(gl.SRC_ALPHA,gl.DST_COLOR);
-            // gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
             for(let i=0; i<s._programs.length; i++)
             {
                 s._programs[i].render();
@@ -104,6 +130,11 @@ export class App{
     public getImage(imgName:ImageName){
         return this.imgDic[imgName];
     }
+
+    /**界面的宽度 */
+    public get width(){return this._width;}
+    /**界面的高度 */
+    public get height(){return this._height;}
 
 }
 
