@@ -83,7 +83,7 @@ export class App{
         let blurProgram = new WebGL(gl, blurVertexStr, blurFragStr);
         let blurData:ShaderParamData = {
             aPos:new GLArray([-1.0,1.0, -1.0,-1.0,  1.0,-1.0, 1.0, 1.0]),
-            uBgSampler:bg3Img,
+            uBgSampler:bg2Img,
             uSize:s._size,
             indexs:new GLArray([0,1,2,  0,2,3]),
         }
