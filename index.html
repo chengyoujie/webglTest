@@ -1,0 +1,131 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <title>测试IndexBuffer</title>
+    </head>
+    <style>
+        body{
+            margin-top: 0px;
+            font:微软雅黑 12px;
+        }
+        </style>
+    <body>
+       
+       <canvas id="myCanvas" width="300px" height="300px" style="border: 1px solid red" />
+
+        
+
+
+    <script>
+        var shadervs = `    
+            attribute vec3 v3Position;
+            void main(void)
+            {
+                gl_Position = vec4(v3Position, 1.0);
+            }`;
+        var shaderfs = `
+        void main(void){
+                gl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);
+            }`;
+        var webgl;// = new WebGLRenderingContext();
+        var vertextShader;// = new WebGLShader();
+        var fragmentShader;// = new WebGLShader();
+        var programObj;
+        var v3PositionIndex = 0;
+        init();
+        function init(){
+            var myCanvas = document.getElementById("myCanvas")
+            webgl = myCanvas.getContext("webgl");
+            webgl.viewport(0, 0, myCanvas.clientWidth, myCanvas.clientHeight);
+
+            vertextShader = loadShader(webgl, webgl.VERTEX_SHADER, shadervs);
+            fragmentShader = loadShader(webgl, webgl.FRAGMENT_SHADER, shaderfs);
+
+            programObj = webgl.createProgram();
+
+            webgl.attachShader(programObj, vertextShader);
+            webgl.attachShader(programObj, fragmentShader);
+            webgl.bindAttribLocation(programObj, v3PositionIndex, "v3Position")
+
+
+            webgl.linkProgram(programObj);
+
+            webgl.useProgram(programObj);
+
+            var jsArrayData = 
+            [
+                -0.5, 0.5, 0.0,
+                0.5, 0.5, 0.0,
+                0.5, 0.0, 0.0,
+
+                -0.5, 0.0, 0.0,
+            ]
+
+            var indexData = [0, 1, 2,    0, 2, 3]
+            var triangleBuffer = webgl.createBuffer();
+            webgl.bindBuffer(webgl.ARRAY_BUFFER, triangleBuffer);
+            webgl.bufferData(webgl.ARRAY_BUFFER, new Float32Array(jsArrayData), webgl.STATIC_DRAW)
+
+
+            var indexBuffer = webgl.createBuffer();
+            webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+            webgl.bufferData(webgl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexData), webgl.STATIC_DRAW);
+
+
+            webgl.clearColor(0.0, 0.0, 0.0, 1.0)
+            webgl.clear(webgl.COLOR_BUFFER_BIT);
+
+
+            // webgl.bindBuffer(webgl.ARRAY_BUFFER, triangleBuffer);
+            webgl.bindBuffer(webgl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+            webgl.enableVertexAttribArray(v3PositionIndex);
+            webgl.vertexAttribPointer(v3PositionIndex, 3, webgl.FLOAT, false, 0, 0)
+
+            webgl.drawElements(webgl.TRIANGLES, 6, webgl.UNSIGNED_SHORT, 0)
+            // webgl.drawArrays(webgl.TRIANGLES, 0, 6)
+
+
+
+
+
+
+
+
+
+
+        }
+
+        function loadShader(gl, type, source){
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+            {
+                alert("An error occurred compliling the shaders");
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        
+        // function getScript(id){
+        //     var scriptEle = document.getElementById(id);
+        //     if(!scriptEle)return "";
+        //     var child = scriptEle.firstChild;
+        //     var sourceCode = "";
+        //     while(child)
+        //     {
+        //         if(child.nodeType == child.TEXT_NODE)
+        //         {
+        //             sourceCode += child.textContent;
+        //         }
+        //         child = child.nextSibling;
+        //     }
+        //     return sourceCode;
+        // }
+
+    </script>
+    </body>
+</html>
