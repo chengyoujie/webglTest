@@ -44,12 +44,12 @@ export class Test{
 
         // dropCtx.globalCompositeOperation = "source-in";
         // dropCtx.drawImage(dropBuffer, 0, 0, dropSize, dropSize);
-        let drop = new Rain(12);
+        let drop = new Rain();
         s.drawLine(test);
         test.appendChild(drop.canvas)
         //绘制Rain
         s.drawLine(test);
-        let rain = new Rain(100);
+        let rain = new Rain();
         test.appendChild(rain.canvas);
         //绘制清除雨滴的canvas
         s.drawLine(test);
@@ -63,8 +63,8 @@ export class Test{
 
         //raindrop画布
         s.drawLine(test);
-        let rainDrop = new RainDrop(300, 300);
-        test.appendChild(rainDrop.canvas)
+        // let rainDrop = new RainDrop(300, 300, app.rainOptions);
+        // test.appendChild(rainDrop.canvas)
         //背景图
         s.drawLine(test);
         var img = new Image();

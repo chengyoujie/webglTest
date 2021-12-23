@@ -39,11 +39,20 @@ export class App{
     private _rainDrop:RainDrop;
     /**shader的数据类 */
     private _rainShaderData:ShaderParamData;
+    
+    /**雨滴的参数 */
+    private _options:RainDropOptins;
 
     public rainSize = 64;
 
     constructor(){
-
+        let s = this;
+        s._options = {
+            rainSize:{min:50, max:120},
+            maxRains:100,
+            dropletSize:{min:2.5, max:5.5},
+            dropletFrameNum:20,
+        }
     }
 
 
@@ -65,13 +74,13 @@ export class App{
         let s = this;
         let gl = s._mainCanvas.getContext("webgl");
         this._gl = gl;
+        
         s._width = s._mainCanvas.width;
         s._height = s._mainCanvas.height;
         gl.viewport(0, 0, s._mainCanvas.width, s._mainCanvas.height);
         let rainProgram = new WebGL(gl, rainVertexStr, rainFragStr);
-        s._rainDrop = new RainDrop(s.width, s.height);
-        
-        // let raa = new Rain(255);
+        s._rainDrop = new RainDrop(s.width, s.height, s._options);
+
         s._rainShaderData = {
             aPos:new GLArray([-1.0,1.0, -1.0,-1.0,  1.0,-1.0, 1.0, 1.0]),
             aUv:new GLArray([0.0,1.0, 0.0, 0.0,   1.0, 0.0,  1.0, 1.0]),
@@ -84,10 +93,9 @@ export class App{
         this._programs.push(rainProgram);
         this.update();
 
-
         //test 测试界面
-        let test = new Test();
-        test.start();
+        // let test = new Test();
+        // test.start();
     }
     /**
      * 重新设置界面宽高
@@ -135,6 +143,8 @@ export class App{
     public get width(){return this._width;}
     /**界面的高度 */
     public get height(){return this._height;}
+    /**雨滴的参数 */
+    public get rainOptions(){return this._options;}
 
 }
 

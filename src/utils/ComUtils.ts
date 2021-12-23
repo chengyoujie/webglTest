@@ -118,6 +118,6 @@ export class ComUtils{
      * @returns 
      */
     public static distance(r1:{x:number, y:number}, r2:{x:number, y:number}){
-        return Math.sqrt((r2.x-r2.x)*(r2.x-r1.x) + (r2.y - r1.y)*(r2.y - r1.y));
+        return Math.sqrt((r2.x-r1.x)*(r2.x-r1.x) + (r2.y - r1.y)*(r2.y - r1.y));
     }
 }

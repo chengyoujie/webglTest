@@ -5,7 +5,6 @@ import { ComUtils } from "../utils/ComUtils";
 export class Rain{
 
     public canvas:HTMLCanvasElement;
-    private index:number = 0;
     private static Buff_Element = ComUtils.createCanvas(64, 64);
     private static Buff_2dContext:CanvasRenderingContext2D = Rain.Buff_Element.getContext("2d");
     
@@ -28,11 +27,10 @@ export class Rain{
     
     public static count = 0;
 
-    constructor(index:number){
+    constructor(){
         let s = this;
         Rain.count ++;
         console.log("生成第 "+Rain.count+" 个新水滴")
-        s.index = index;
         s.killed = false;
         s.isNew = true;
         s.canvas = ComUtils.createCanvas(app.rainSize, app.rainSize);
@@ -51,7 +49,7 @@ export class Rain{
         buffCtx.drawImage(app.getImage(ImageName.RAIN_COLOR_IMG), 0, 0, app.rainSize, app.rainSize);
         //blue overlay for depth
         buffCtx.globalCompositeOperation = "screen";//像素被反转，相乘，然后再次反转。 结果是一张较浅的图片
-        buffCtx.fillStyle = "rgba(0, 0, "+s.index+",1)";//rain Color 图片只有r,g, 没有b, 
+        buffCtx.fillStyle = "rgba(0, 0, 0,1)";//rain Color 图片只有r,g, 没有b, 
         buffCtx.fillRect(0, 0, app.rainSize, app.rainSize);
         //alpha
         rainCtx.globalCompositeOperation = "source-over";//覆盖
@@ -83,7 +81,6 @@ export class Rain{
         s.x = 0;
         s.y = 0;
         s.size = 0;
-        s.index = 0;
         s.momentum = 0;
         s.shrink = 0;
         s.lastSpawn = 0;
@@ -104,9 +101,8 @@ export class Rain{
         let rain:Rain;
         if(Rain._rains.length>0){
             rain = Rain._rains.pop();
-            rain.index = index;
         }else{
-            rain = new Rain(index);
+            rain = new Rain();
         }
         rain.killed = false;
         rain.isNew = true;
