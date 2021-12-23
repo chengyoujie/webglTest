@@ -1,25 +1,12 @@
 precision mediump float;
-uniform sampler2D uSampler;
-varying vec2 vUv;
+uniform sampler2D uBgSampler;
 uniform vec2 uSize;
 
+//根据当前的像素位置，转换成0-1的uv坐标
+vec2 texCoord(){
+    return vec2(gl_FragCoord.x,  gl_FragCoord.y)/uSize;
+}
 void main(){
-    // vec4 color = vec4(0.0);
-	// const float seg = 5.0;
-	// float f = 0.0;
-	// float dv = 2.0/512.0;
-	// float tot = 0.0;
-	// for(float i=-seg; i <= seg; ++i)
-	// {
-	// 	for(float j = -seg; j <= seg; ++j)
-	// 	{
-	// 		f = (1.1 - sqrt(i*i + j*j)/8.0);
-	// 		f *= f;
-	// 		tot += f;
-	// 		color += texture2D( uSampler, vec2(vUv.x + j * dv, vUv.y + i * dv) ).rgba * f;
-	// 	}
-	// }
-	// color /= tot;
-    vec4 color = texture2D(uSampler, vUv);
-	gl_FragColor = color;
+    vec4 color = texture2D(uBgSampler, texCoord());
+	gl_FragColor = vec4(color.rgb, 1.0);
 }

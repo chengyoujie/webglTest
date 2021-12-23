@@ -29,10 +29,8 @@ export class App{
     private _programs:WebGL[] = [];
     /**初始化时已经加载图片的字典 */
     private imgDic:{[name:string]:HTMLImageElement} = {};
-    /**canvas的宽度 */
-    private _width:number = 800;
-    /**canvas的高度 */
-    private _height:number = 800;
+    /**canvas的宽高 [0]=宽度， [1]=高度 */
+    private _size:GLArray;
     /**主canvas */
     private _mainCanvas:HTMLCanvasElement;
     /**雨滴生成器 */
@@ -43,10 +41,11 @@ export class App{
     /**雨滴的参数 */
     private _options:RainDropOptins;
 
-    public rainSize = 64;
+
 
     constructor(){
         let s = this;
+        s._size = new GLArray([800, 800]);
         s._options = {
             rainSize:{min:50, max:120},
             maxRains:100,
@@ -59,6 +58,8 @@ export class App{
     public run(canvas:HTMLCanvasElement){
         let s = this;
         s._mainCanvas = canvas;
+        let gl = s._mainCanvas.getContext("webgl");
+        this._gl = gl;
         let imgs = [
             {name:ImageName.BG_IMG, src:bgImg}, 
             {name:ImageName.RAIN_ALPHA_IMG, src:dropAlphaImg}, 
@@ -72,21 +73,31 @@ export class App{
 
     private start(){
         let s = this;
-        let gl = s._mainCanvas.getContext("webgl");
-        this._gl = gl;
-        
-        s._width = s._mainCanvas.width;
-        s._height = s._mainCanvas.height;
+        let gl = s._gl;
+        s._size.setValue(0, s._mainCanvas.width);
+        s._size.setValue(1, s._mainCanvas.height);
         gl.viewport(0, 0, s._mainCanvas.width, s._mainCanvas.height);
         let rainProgram = new WebGL(gl, rainVertexStr, rainFragStr);
         s._rainDrop = new RainDrop(s.width, s.height, s._options);
 
+        let blurProgram = new WebGL(gl, blurVertexStr, blurFragStr);
+        let blurData:ShaderParamData = {
+            aPos:new GLArray([-1.0,1.0, -1.0,-1.0,  1.0,-1.0, 1.0, 1.0]),
+            uBgSampler:bg3Img,
+            uSize:s._size,
+            indexs:new GLArray([0,1,2,  0,2,3]),
+        }
+        blurProgram.bindData(blurData);
+        blurProgram.enableUseFrameBuffer();
+        this._programs.push(blurProgram);
+        //雨滴渲染
+        this._programs.push(blurProgram);
         s._rainShaderData = {
             aPos:new GLArray([-1.0,1.0, -1.0,-1.0,  1.0,-1.0, 1.0, 1.0]),
             aUv:new GLArray([0.0,1.0, 0.0, 0.0,   1.0, 0.0,  1.0, 1.0]),
-            uBgSampler:bg3Img,
+            uBgSampler:blurProgram,
             uRainSampler:s._rainDrop.canvas,
-            uSize:new GLArray([s.width, s.height]),
+            uSize:s._size,
             indexs:new GLArray([0,1,2,  0,2,3])
         }
         rainProgram.bindData(s._rainShaderData);
@@ -104,15 +115,16 @@ export class App{
      */
     public resize(width:number, height:number){
         let s = this;
-        s._width = width;
-        s._height = height;
+        s._size.setValue(0, width);
+        s._size.setValue(1, height);
         s._mainCanvas.width = s.width;
         s._mainCanvas.height = s.height;
-        s._gl.viewport(0, 0, s.width, s.height);
-        s._rainDrop.resize(s.width,s.height)  
-        let sz:GLArray = s._rainShaderData.uSize as GLArray;
-        sz.setValue(0, s.width);
-        sz.setValue(1, s.height);
+        if(s._gl) s._gl.viewport(0, 0, s.width, s.height);
+        if(s._rainDrop)s._rainDrop.resize(s.width,s.height);
+        for(let i=0; i<s._programs.length; i++)
+        {
+            s._programs[i].resize();
+        }
     }
 
 
@@ -140,9 +152,9 @@ export class App{
     }
 
     /**界面的宽度 */
-    public get width(){return this._width;}
+    public get width(){return this._size.getValue(0);}
     /**界面的高度 */
-    public get height(){return this._height;}
+    public get height(){return this._size.getValue(1);}
     /**雨滴的参数 */
     public get rainOptions(){return this._options;}
 

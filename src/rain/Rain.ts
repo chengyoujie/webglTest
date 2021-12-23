@@ -24,16 +24,20 @@ export class Rain{
     public killed:boolean = false;
     /**是否是新产生的 */
     public isNew = false;
+
+    
+    public static RAIN_SIZE = 64;
     
     public static count = 0;
+
 
     constructor(){
         let s = this;
         Rain.count ++;
-        console.log("生成第 "+Rain.count+" 个新水滴")
+        // console.log("生成第 "+Rain.count+" 个新水滴")
         s.killed = false;
         s.isNew = true;
-        s.canvas = ComUtils.createCanvas(app.rainSize, app.rainSize);
+        s.canvas = ComUtils.createCanvas(Rain.RAIN_SIZE, Rain.RAIN_SIZE);
         s.init();
     }
 
@@ -43,20 +47,20 @@ export class Rain{
         let rainCtx = s.canvas.getContext("2d");
         let buffCtx = Rain.Buff_2dContext;
         let buffEle = Rain.Buff_Element;
-        buffCtx.clearRect(0, 0, app.rainSize, app.rainSize);
+        buffCtx.clearRect(0, 0, Rain.RAIN_SIZE, Rain.RAIN_SIZE);
         //color
         buffCtx.globalCompositeOperation = "source-over";//覆盖
-        buffCtx.drawImage(app.getImage(ImageName.RAIN_COLOR_IMG), 0, 0, app.rainSize, app.rainSize);
+        buffCtx.drawImage(app.getImage(ImageName.RAIN_COLOR_IMG), 0, 0, Rain.RAIN_SIZE, Rain.RAIN_SIZE);
         //blue overlay for depth
         buffCtx.globalCompositeOperation = "screen";//像素被反转，相乘，然后再次反转。 结果是一张较浅的图片
         buffCtx.fillStyle = "rgba(0, 0, 0,1)";//rain Color 图片只有r,g, 没有b, 
-        buffCtx.fillRect(0, 0, app.rainSize, app.rainSize);
+        buffCtx.fillRect(0, 0, Rain.RAIN_SIZE, Rain.RAIN_SIZE);
         //alpha
         rainCtx.globalCompositeOperation = "source-over";//覆盖
-        rainCtx.drawImage(app.getImage(ImageName.RAIN_ALPHA_IMG), 0, 0, app.rainSize, app.rainSize);
+        rainCtx.drawImage(app.getImage(ImageName.RAIN_ALPHA_IMG), 0, 0, Rain.RAIN_SIZE, Rain.RAIN_SIZE);
 
         rainCtx.globalCompositeOperation = "source-in";//新图形仅在和目标图层重叠的位置绘制， 其他地方透明
-        rainCtx.drawImage(buffEle, 0, 0, app.rainSize, app.rainSize);
+        rainCtx.drawImage(buffEle, 0, 0, Rain.RAIN_SIZE, Rain.RAIN_SIZE);
     }
 
     /**
@@ -97,7 +101,7 @@ export class Rain{
      * @param index 
      * @returns 
      */
-    public static getRain(index:number){
+    public static getRain(){
         let rain:Rain;
         if(Rain._rains.length>0){
             rain = Rain._rains.pop();

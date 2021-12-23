@@ -64,11 +64,11 @@ export class RainDrop{
         s.dropletTemplate = new Rain();
         s._sizeDelt = s._options.rainSize.max - s._options.rainSize.min;
         //画个直径是64*2的黑圆
-        s.clearRainCanvas = ComUtils.createCanvas(app.rainSize*2, app.rainSize*2);
+        s.clearRainCanvas = ComUtils.createCanvas(Rain.RAIN_SIZE*2, Rain.RAIN_SIZE*2);
         let clearRainCtx = s.clearRainCanvas.getContext("2d")
         clearRainCtx.fillStyle = "#000";
         clearRainCtx.beginPath();
-        clearRainCtx.arc(app.rainSize, app.rainSize, app.rainSize, 0, Math.PI*2);//x,y,r, startAngle, endAngle
+        clearRainCtx.arc(Rain.RAIN_SIZE, Rain.RAIN_SIZE, Rain.RAIN_SIZE, 0, Math.PI*2);//x,y,r, startAngle, endAngle
         clearRainCtx.fill();
     }
     /**
@@ -113,7 +113,7 @@ export class RainDrop{
             if(s._rains.length>s._options.maxRains)break;
             let r = ComUtils.random(s._options.rainSize.min, s._options.rainSize.max, n=>n*n);
             let idx = Math.floor(((r-s._options.rainSize.min)/s._sizeDelt))*255;
-            let rain = Rain.getRain(idx);
+            let rain = Rain.getRain();
             rain.set(ComUtils.random(s._width), ComUtils.random(s._height), r);
             s.initMomentum(rain);//初始化 动量
             newRains.push(rain);
@@ -142,7 +142,7 @@ export class RainDrop{
                 rain.lastSpawn += rain.momentum;
                 if(rain.lastSpawn > rain.nextSpawn)// && s._options.maxRains>s.rains.length){
                 {
-                    let trailRain = Rain.getRain(125);
+                    let trailRain = Rain.getRain();
                     let trailSize = rain.size*ComUtils.random(0.2, 0.5)
                     trailRain.set(
                         rain.x+ComUtils.random(-rain.size, rain.size)*0.1,

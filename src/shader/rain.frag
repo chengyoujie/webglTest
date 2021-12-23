@@ -26,6 +26,7 @@ vec2 texCoord(){
 void main(){
     vec2 uv = texCoord();//当前屏幕像素的位置
     vec4 bg = texture2D(uBgSampler, uv);//0-1
+    // vec4 bg = vec4(1.0, 0.0, 0.0, 1.0);//0-1
     vec4 rain = texture2D(uRainSampler, uv);
     
     vec2 refraction = (vec2(rain.g, rain.r) - 0.5)*2.0;//转换成 剪裁坐标 -1~1

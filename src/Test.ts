@@ -57,7 +57,7 @@ export class Test{
         let clearRainCtx = clearEle.getContext("2d")
         clearRainCtx.fillStyle = "#000";
         clearRainCtx.beginPath();
-        clearRainCtx.arc(app.rainSize, app.rainSize, app.rainSize, 0, Math.PI*2);
+        clearRainCtx.arc(Rain.RAIN_SIZE, Rain.RAIN_SIZE, Rain.RAIN_SIZE, 0, Math.PI*2);
         clearRainCtx.fill();
         test.appendChild(clearEle);
 
