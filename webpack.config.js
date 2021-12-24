@@ -6,7 +6,7 @@ var RootPath = path.resolve(__dirname);
 var AppPath = path.join(RootPath, "src/Main.ts")
 var BuildPath = path.join(RootPath, "build")
 module.exports = {
-    mode: "development",
+    mode: "development",//production  development
     entry: {
         app: AppPath,
     },

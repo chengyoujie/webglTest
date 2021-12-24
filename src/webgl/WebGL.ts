@@ -196,6 +196,13 @@ export class WebGL{
         
         gl.useProgram(s._program);
         if(s._useFrameBuffer){//使用帧缓存
+            if(!s._frameBuffer)
+            {
+                let frame = s.initFrameBuffer();
+                s._frameBuffer = frame.buff;
+                s._frameTexture = frame.texture;
+                s._frameRenderBuffer = frame.render;
+            }
             gl.bindFramebuffer(gl.FRAMEBUFFER, s._frameBuffer);
             gl.viewport(0, 0, s._frameBufferW, s._frameBufferH);
             gl.clearColor(0.0, 0.4, 0.6, 1.0);
@@ -260,6 +267,7 @@ export class WebGL{
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, null);
         gl.useProgram(null);
     }
 
@@ -321,13 +329,7 @@ export class WebGL{
         s._useFrameBuffer = true;
         s._frameBufferW = app.width;
         s._frameBufferH = app.height;
-        if(!s._frameBuffer)
-        {
-            let frame = s.initFrameBuffer();
-            s._frameBuffer = frame.buff;
-            s._frameTexture = frame.texture;
-            s._frameRenderBuffer = frame.render;
-        }
+        
     }
 
     /**
@@ -361,7 +363,6 @@ export class WebGL{
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, s._frameBufferW, s._frameBufferH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
             gl.bindRenderbuffer(gl.RENDERBUFFER, s._frameRenderBuffer);
             gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, s._frameBufferW, s._frameBufferH);
-            gl.bindRenderbuffer(gl.RENDERBUFFER, null);
         }
         s._sizeChange = false;
     }
@@ -371,23 +372,33 @@ export class WebGL{
         let s = this;
         let gl = s._gl;
         let img = s._cacheImage[unifromName];
-        if(!img)return;
+        if(!img)
+        {
+            gl.bindTexture(gl.TEXTURE_2D, texture);//如果没有图片也要绑定下texture 否则会报错
+            return;
+        }
         if(img instanceof WebGL)
         {
             let texture = img.frameBufferTexture();
             if(texture){
                 gl.bindTexture(gl.TEXTURE_2D, texture);
-                // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-                // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-                // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-                // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             }else{
                 Log.warn("请确保 shader 中使用WebGL作为图片的 WebGL启用 帧缓存 enableUseFrameBuffer")
             }
         }else{
             gl.bindTexture(gl.TEXTURE_2D, texture);
-            if(!(img instanceof Image) || !s._cacheTexture[unifromName]){
-                s._cacheTexture[unifromName] = texture;
+            let needParseImage = true;
+            if(img instanceof HTMLImageElement){
+                if(s._cacheTexture[img.src])
+                {
+                    needParseImage = false;
+                }else{
+                    s._cacheTexture[img.src] = true;
+                    needParseImage = true;
+                }
+            }
+            if(needParseImage)
+            {
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img)
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);

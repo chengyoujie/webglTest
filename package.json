@@ -2,10 +2,13 @@
   "name": "testwarte",
   "version": "1.0.0",
   "description": "",
+  "homepage": "https://chengyoujie.github.io/webglTest/",
   "main": "index.js",
   "scripts": {
     "start": "webpack server",
-    "build": "webpack"
+    "build": "webpack",
+    "predeploy":"npm run build",
+    "deploy":"gh-pages -d dist"
   },
   "author": "cyj",
   "license": "ISC",

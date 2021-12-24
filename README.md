@@ -1,3 +1,8 @@
+## 下雨效果
+
+## 预览地址
+[https://chengyoujie.github.io/webglTest/index.html](https://chengyoujie.github.io/webglTest/index.html)
+
 ## 安装
 
 cmd中执行`npm install`安装需要的依赖
