@@ -28,26 +28,42 @@ window.onload = function(){
 window.onresize = debounce(onResize, 200);
 
 //抹除水滴
-var touchX = 0;
-var touchY = 0;
 var isTouch = false;
-window.onmousedown = function (e){
+
+function touchStart(touchX, touchY){
     isTouch = true;
-    touchX = e.clientX;
-    touchY = e.clientY;
     if(app)app.erase(touchX, touchY);
 }
 
-window.onmousemove = function(e){
+function touchMove(touchX, touchY){
     if(!isTouch)return;
-    touchX = e.clientX;
-    touchY = e.clientY;
     if(app)app.erase(touchX, touchY);
 }
 
-window.onmouseup = function(e){
-    touchX = e.clientX;
-    touchY = e.clientY;
+function touchEnd(){
     isTouch = false;
     if(app)app.endErase();
 }
+
+
+window.onmousedown = function (e){
+    touchStart(e.clientX, e.clientY);
+}
+
+window.onmousemove = function(e){
+    touchMove(e.clientX, e.clientY);
+}
+
+window.onmouseup = function(){
+    touchEnd();
+}
+
+window.addEventListener("touchstart", (e)=>{
+    touchStart(e.touches[0].clientX, e.touches[0].clientY);
+})
+window.addEventListener("touchmove", (e)=>{
+    touchMove(e.touches[0].clientX, e.touches[0].clientY);
+})
+window.addEventListener("touchend", ()=>{
+    touchEnd();
+})

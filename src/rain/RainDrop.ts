@@ -134,7 +134,7 @@ export class RainDrop{
     private updateRain(){
         let s = this;
         //更新滤镜显示区域
-        if(s._blurLastRenderTimes>10)
+        if(s._blurLastRenderTimes>8)
         {
             s._blurCtx.globalCompositeOperation = "lighter";
             s._blurCtx.fillStyle = "#000100ff";
