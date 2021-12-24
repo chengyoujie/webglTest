@@ -61,9 +61,9 @@ export class App{
         let gl = s._mainCanvas.getContext("webgl");
         this._gl = gl;
         let imgs = [
-            {name:ImageName.BG_IMG, src:bgImg}, 
+            {name:ImageName.BG_IMG, src:bg2Img}, 
             {name:ImageName.RAIN_ALPHA_IMG, src:dropAlphaImg}, 
-            {name:ImageName.RAIN_COLOR_IMG, src:dropColorImg}
+            {name:ImageName.RAIN_COLOR_IMG, src:dropColorImg},
         ];
         ComUtils.loadImages(imgs).then((values:{name:string, img:HTMLImageElement}[])=>{
           for(let i=0; i<values.length; i++)this.imgDic[values[i].name] = values[i].img;
@@ -79,11 +79,12 @@ export class App{
         gl.viewport(0, 0, s._mainCanvas.width, s._mainCanvas.height);
         let rainProgram = new WebGL(gl, rainVertexStr, rainFragStr);
         s._rainDrop = new RainDrop(s.width, s.height, s._options);
-
+        //模糊处理
         let blurProgram = new WebGL(gl, blurVertexStr, blurFragStr);
         let blurData:ShaderParamData = {
             aPos:new GLArray([-1.0,1.0, -1.0,-1.0,  1.0,-1.0, 1.0, 1.0]),
             uBgSampler:bg2Img,
+            uBlurArea:s._rainDrop.blurCanvas,
             uSize:s._size,
             indexs:new GLArray([0,1,2,  0,2,3]),
         }
@@ -91,7 +92,6 @@ export class App{
         blurProgram.enableUseFrameBuffer();
         this._programs.push(blurProgram);
         //雨滴渲染
-        this._programs.push(blurProgram);
         s._rainShaderData = {
             aPos:new GLArray([-1.0,1.0, -1.0,-1.0,  1.0,-1.0, 1.0, 1.0]),
             aUv:new GLArray([0.0,1.0, 0.0, 0.0,   1.0, 0.0,  1.0, 1.0]),
@@ -102,11 +102,16 @@ export class App{
         }
         rainProgram.bindData(s._rainShaderData);
         this._programs.push(rainProgram);
+
         this.update();
 
         //test 测试界面
         // let test = new Test();
         // test.start();
+        //test
+        // window.document.body.appendChild(s._rainDrop.blurCanvas);
+        // window.document.body.removeChild(s._mainCanvas);
+        // window.document.body.appendChild(s._erase.canvas);
     }
     /**
      * 重新设置界面宽高
@@ -139,6 +144,16 @@ export class App{
             requestAnimationFrame(render);
         }
         requestAnimationFrame(render);
+    }
+
+    public erase(x:number, y:number){
+        let s = this;
+        if(s._rainDrop)s._rainDrop.erase(x, y, 50);
+    }
+
+    public endErase(){
+        let s = this;
+        if(s._rainDrop)s._rainDrop.endErase();
     }
 
 

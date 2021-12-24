@@ -42,6 +42,18 @@ export class RainDrop{
     private _showRainSizeMult = 0.20;
     /**水滴在y方向的缩放值 */
     private _rainYScale = 1.5;
+    /**触摸点的x位置 */
+    private _touchX:number = 0;
+    /**触摸点的y位置 */
+    private _touchY:number= 0;
+    /**触摸点的大小 */
+    private _touchSize:number = 0;
+    /**模糊滤镜的canvas */
+    public blurCanvas:HTMLCanvasElement;
+    /**模糊滤镜的2d */
+    private _blurCtx:CanvasRenderingContext2D;
+    /**模糊区域上次更新的时间 */
+    private _blurLastRenderTimes:number = 0;
 
     constructor(width:number, height:number, options:RainDropOptins){
         let s = this;
@@ -52,6 +64,8 @@ export class RainDrop{
         s.canvasCtx = s.canvas.getContext("2d");
         s.dropletCanvas = ComUtils.createCanvas(width, height);
         s.dropletCtx = s.dropletCanvas.getContext("2d");
+        s.blurCanvas = ComUtils.createCanvas(width, height);
+        s._blurCtx = s.blurCanvas.getContext("2d");
         s.init();
         s.update();
     } 
@@ -79,6 +93,7 @@ export class RainDrop{
     public resize(width:number, height:number){
         let s = this;
         s.canvasCtx.clearRect(0, 0, s._width, s._height);//将之前的屏幕内容清除
+        s._blurCtx.clearRect(0, 0, s._width, s._height);
         s._width = width;
         s._height = height;
         s.canvas.width = width;
@@ -94,8 +109,40 @@ export class RainDrop{
         requestAnimationFrame(this.update.bind(this));
     }
 
+    public erase(x:number, y:number, size:number){
+        let s = this;
+        s.eraseCtx(s.dropletCtx, x, y, size, "rgba(0, 0, 0, 1)");
+        s.eraseCtx(s._blurCtx, x, y, size, "#000000ff");
+        s._touchX = x;
+        s._touchY = y;
+        s._touchSize = size;
+    }
+
+    public endErase(){
+        this._touchSize = 0;
+    }
+
+    private eraseCtx(ctx:CanvasRenderingContext2D, x:number, y:number, size:number, fillColor:string){
+        ctx.beginPath();
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.fillStyle = fillColor;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI*2);
+        ctx.fill();
+    }
+
     private updateRain(){
         let s = this;
+        //更新滤镜显示区域
+        if(s._blurLastRenderTimes>10)
+        {
+            s._blurCtx.globalCompositeOperation = "lighter";
+            s._blurCtx.fillStyle = "#000100ff";
+            s._blurCtx.fillRect(0, 0, s._width, s._height);
+            s._blurLastRenderTimes = 0;
+        }
+        s._blurLastRenderTimes ++;
+
         //更新小雨滴的显示
         let dropletCount = s._options.dropletFrameNum;//每帧添加小雨滴的个数 
         let dropletSize = s._options.dropletSize;
@@ -105,14 +152,13 @@ export class RainDrop{
         s.canvasCtx.drawImage(s.dropletCanvas, 0, 0, s._width, s._height);//将dropletCanvas中的图片绘制到canvas中
         //更新大雨滴的显示
         let count = 0;
-        let rainLimit = 1;//每次最多出现大雨滴的个数 6
+        let rainLimit = 6;//每次最多出现大雨滴的个数 6
         let newRains = s._rains == s.rainsTemplate1?s.rainsTemplate2:s.rainsTemplate1;
         newRains.length = 0;
         while(ComUtils.random()<=0.1 && count<rainLimit){//随机出现
             count ++;
             if(s._rains.length>s._options.maxRains)break;
             let r = ComUtils.random(s._options.rainSize.min, s._options.rainSize.max, n=>n*n);
-            let idx = Math.floor(((r-s._options.rainSize.min)/s._sizeDelt))*255;
             let rain = Rain.getRain();
             rain.set(ComUtils.random(s._width), ComUtils.random(s._height), r);
             s.initMomentum(rain);//初始化 动量
@@ -133,6 +179,15 @@ export class RainDrop{
                     rain.shrink += 0.01;
                 }
                 rain.size -= rain.shrink;
+                if(s._touchSize>0){
+                    let size = rain.size*s._showRainSizeMult;
+                    if(rain.x-size>s._touchX-s._touchSize  &&  rain.x+size <s._touchX+s._touchSize
+                        && rain.y-size>s._touchY-s._touchSize && rain.y+size<s._touchY+s._touchSize){
+                            rain.killed = true;
+                            rain.destory(); 
+                            return;
+                        }
+                }
                 if(rain.size<=3)
                 {
                     rain.killed = true;
@@ -193,6 +248,7 @@ export class RainDrop{
                 s.canvasCtx.drawImage(rain.canvas, rain.x-rain.size/2, rain.y-rain.size/2*s._rainYScale, rain.size, rain.size*s._rainYScale);
                 newRains.push(rain);
             }else{
+                s._rains.splice(i, 1)
                 rain.destory();
             }
         }, this);

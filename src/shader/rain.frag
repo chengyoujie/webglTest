@@ -30,7 +30,7 @@ void main(){
     vec4 rain = texture2D(uRainSampler, uv);
     
     vec2 refraction = (vec2(rain.g, rain.r) - 0.5)*2.0;//转换成 剪裁坐标 -1~1
-    vec2 refractionPos = uv + (1.0/uSize * refraction *(256.0 + (rain.b * 256.0)));//当前uv+ (折射像素的范围)/宽高 * rain中g,r的位置(-1,1)
+    vec2 refractionPos = uv + (1.0/uSize * refraction *(256.0));//当前uv+ (折射像素的范围)/宽高 * rain中g,r的位置(-1,1)
 
     vec4 tex = texture2D(uBgSampler, refractionPos);
 

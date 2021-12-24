@@ -5,6 +5,7 @@ import { Log } from "./utils/Log";
 import { Rain } from "./rain/Rain"
 import { app } from "./Main"
 import { RainDrop } from "./rain/RainDrop"
+import { ComUtils } from "./utils/ComUtils";
 
 export class Test{
     constructor(){
@@ -18,8 +19,10 @@ export class Test{
 
     private runTest(){
         let s = this;
-        let test = document.getElementById("test");
-        test.style.cssText = "display: inline-flex; width:100%";
+        let test = document.createElement("div");
+        test.style.cssText = "display: inline-flex;width: 100%;position: absolute;top: 0px;left: 0px;background: red;";
+        document.body.appendChild(test);
+        // test.style.cssText = "display: inline-flex; width:100%";
         //绘制雨滴
         // let dropAlphaImg = app.getImage(ImageName.RAIN_ALPHA_IMG)
         // let dropColorImg = app.getImage(ImageName.RAIN_COLOR_IMG)
@@ -72,6 +75,20 @@ export class Test{
         img.height = 300;
         img.src = bg3Img;
         test.appendChild(img)
+
+        //test reduce
+        let cav = ComUtils.createCanvas(200, 200);
+        let cavCtx = cav.getContext("2d");
+        cavCtx.fillStyle = "#00ff00ff";
+        cavCtx.fillRect(0, 0, 200, 200);
+        cavCtx.fillStyle = "#000000ff";
+        cavCtx.fillRect(20, 20, 40, 40);
+        setInterval(()=>{
+          cavCtx.globalCompositeOperation = "lighter";
+          cavCtx.fillStyle = "#001100ff";
+          cavCtx.fillRect(0, 0, 200, 200);
+        },500)
+        test.appendChild(cav);
     }
 
 

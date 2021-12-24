@@ -24,4 +24,30 @@ window.onload = function(){
     app.run(<HTMLCanvasElement>document.getElementById("webgl"));
     onResize();
 }
+
 window.onresize = debounce(onResize, 200);
+
+//抹除水滴
+var touchX = 0;
+var touchY = 0;
+var isTouch = false;
+window.onmousedown = function (e){
+    isTouch = true;
+    touchX = e.clientX;
+    touchY = e.clientY;
+    if(app)app.erase(touchX, touchY);
+}
+
+window.onmousemove = function(e){
+    if(!isTouch)return;
+    touchX = e.clientX;
+    touchY = e.clientY;
+    if(app)app.erase(touchX, touchY);
+}
+
+window.onmouseup = function(e){
+    touchX = e.clientX;
+    touchY = e.clientY;
+    isTouch = false;
+    if(app)app.endErase();
+}
