@@ -1,6 +1,7 @@
 precision mediump float;
 uniform sampler2D uBgSampler;
 uniform sampler2D uBlurArea;
+uniform sampler2D uMinBg;
 uniform vec2 uSize;
 
 //根据当前的像素位置，转换成0-1的uv坐标
@@ -18,19 +19,27 @@ void main(){
     vec2 uv = texCoord();
     vec4 blurArea = texture2D(uBlurArea, uv);
     vec4 origin = texture2D(uBgSampler, uv);
-    vec2 offset = 1.0/uSize;
-    vec4 color = vec4(0.0);
-    float f = 0.0;
-    float total = 0.0;
-    const int gap = 5;
-    const float totaldis = sqrt(float(gap*gap+gap*gap));
-    for(int i=-gap; i<=gap; i++){
-        for(int j=-gap; j<=gap; j++){
-            f = totaldis - sqrt(float(i*i+j*j));
-            color += texture2D(uBgSampler, vec2(uv.x+offset.x*float(i), uv.y+offset.y*float(j)) )*f;
-            total += f;
-        }
-    }
-    color = color/total;
+    vec4 color = texture2D(uMinBg, uv);
     gl_FragColor = blend(blurArea, origin, color);
 }
+
+// void main(){
+//     vec2 uv = texCoord();
+//     vec4 blurArea = texture2D(uBlurArea, uv);
+//     vec4 origin = texture2D(uBgSampler, uv);
+//     vec2 offset = 1.0/uSize;
+//     vec4 color = vec4(0.0);
+//     float f = 0.0;
+//     float total = 0.0;
+//     const int gap = 5;
+//     const float totaldis = sqrt(float(gap*gap+gap*gap));
+//     for(int i=-gap; i<=gap; i++){
+//         for(int j=-gap; j<=gap; j++){
+//             f = totaldis - sqrt(float(i*i+j*j));
+//             color += texture2D(uBgSampler, vec2(uv.x+offset.x*float(i), uv.y+offset.y*float(j)) )*f;
+//             total += f;
+//         }
+//     }
+//     color = color/total;
+//     gl_FragColor = blend(blurArea, origin, color);
+// }

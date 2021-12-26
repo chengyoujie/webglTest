@@ -54,6 +54,10 @@ export class RainDrop{
     private _blurCtx:CanvasRenderingContext2D;
     /**模糊区域上次更新的时间 */
     private _blurLastRenderTimes:number = 0;
+    /**模糊区域的大小 */
+    private _blurArea:{w:number, h:number, x:number, y:number};
+    /**模糊区域执行绘制的次数 */
+    private _blurAddCount = 0;
 
     constructor(width:number, height:number, options:RainDropOptins){
         let s = this;
@@ -72,6 +76,7 @@ export class RainDrop{
 
     private init(){
         let s = this;
+        s.initBlurArea();
         s.rainsTemplate1 = [];
         s.rainsTemplate2 = [];
         s._rains = s.rainsTemplate1;
@@ -93,9 +98,11 @@ export class RainDrop{
     public resize(width:number, height:number){
         let s = this;
         s.canvasCtx.clearRect(0, 0, s._width, s._height);//将之前的屏幕内容清除
-        s._blurCtx.clearRect(0, 0, s._width, s._height);
         s._width = width;
         s._height = height;
+        s.blurCanvas.width = width;
+        s.blurCanvas.height = height;
+        s.initBlurArea();
         s.canvas.width = width;
         s.canvas.height = height;
         s.dropletCanvas.width = width;
@@ -116,6 +123,11 @@ export class RainDrop{
         s._touchX = x;
         s._touchY = y;
         s._touchSize = size;
+        s._blurAddCount = 256;
+        if(x-size<s._blurArea.x || s._blurArea.x==-999)s._blurArea.x = x-size;
+        if(y-size<s._blurArea.y || s._blurArea.y==-999)s._blurArea.y = y-size;
+        if(x+size>s._blurArea.w+s._blurArea.x) s._blurArea.w = x+size - s._blurArea.x;
+        if(y+size>s._blurArea.h+s._blurArea.y) s._blurArea.h = y+size - s._blurArea.y;
     }
 
     public endErase(){
@@ -131,15 +143,34 @@ export class RainDrop{
         ctx.fill();
     }
 
+    /**初始化模糊区域 */
+    private initBlurArea(){
+        let s = this;
+        s._blurCtx.clearRect(0, 0, s._width, s._height);
+        s._blurArea = {x:0, y:0, w:s._width, h:s._height};
+        s._blurAddCount = 256;
+        s._blurCtx.fillStyle = "#000000";
+        s._blurCtx.beginPath();
+        s._blurCtx.rect(0, 0, s._width, s._height);
+        s._blurCtx.fill();
+    }
+
     private updateRain(){
         let s = this;
         //更新滤镜显示区域
-        if(s._blurLastRenderTimes>8)
+        if(s._blurLastRenderTimes>5 && s._blurAddCount>0)
         {
+            s._blurAddCount --;
             s._blurCtx.globalCompositeOperation = "lighter";
             s._blurCtx.fillStyle = "#000100ff";
-            s._blurCtx.fillRect(0, 0, s._width, s._height);
+            s._blurCtx.fillRect(s._blurArea.x, s._blurArea.y, s._blurArea.w, s._blurArea.h);
             s._blurLastRenderTimes = 0;
+            if(s._blurAddCount<=0){
+                s._blurArea.x = 0;
+                s._blurArea.y = 0;
+                s._blurArea.w = 0;
+                s._blurArea.h = 0;
+            }
         }
         s._blurLastRenderTimes ++;
 

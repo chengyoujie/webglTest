@@ -79,10 +79,16 @@ export class App{
         gl.viewport(0, 0, s._mainCanvas.width, s._mainCanvas.height);
         let rainProgram = new WebGL(gl, rainVertexStr, rainFragStr);
         s._rainDrop = new RainDrop(s.width, s.height, s._options);
+        let bgImg = s.getImage(ImageName.BG_IMG);
+        let blurWidth = bgImg.width/16;
+        let blurHeight = bgImg.height/16;
+        let blurBg = ComUtils.createCanvas( blurWidth, blurHeight);
+        blurBg.getContext("2d").drawImage(bgImg, 0, 0, blurWidth, blurHeight)
         //模糊处理
         let blurProgram = new WebGL(gl, blurVertexStr, blurFragStr);
         let blurData:ShaderParamData = {
             aPos:new GLArray([-1.0,1.0, -1.0,-1.0,  1.0,-1.0, 1.0, 1.0]),
+            uMinBg:blurBg,
             uBgSampler:bg2Img,
             uBlurArea:s._rainDrop.blurCanvas,
             uSize:s._size,
@@ -124,6 +130,8 @@ export class App{
         s._size.setValue(1, height);
         s._mainCanvas.width = s.width;
         s._mainCanvas.height = s.height;
+        // s._mainCanvas.style.width = s.width + "px";
+        // s._mainCanvas.style.height = s.height + "px";
         if(s._gl) s._gl.viewport(0, 0, s.width, s.height);
         if(s._rainDrop)s._rainDrop.resize(s.width,s.height);
         for(let i=0; i<s._programs.length; i++)

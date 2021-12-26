@@ -7,7 +7,7 @@ export let app:App;
 function onResize(){
     console.log("触发resize");
     if(app){
-        app.resize(window.document.body.clientWidth, window.document.body.clientHeight);
+        app.resize(window.innerWidth, window.innerHeight);
     }
 }
 /**防抖 */
