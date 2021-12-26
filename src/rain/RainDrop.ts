@@ -55,9 +55,9 @@ export class RainDrop{
     /**模糊区域上次更新的时间 */
     private _blurLastRenderTimes:number = 0;
     /**模糊区域的大小 */
-    private _blurArea:{w:number, h:number, x:number, y:number};
-    /**模糊区域执行绘制的次数 */
-    private _blurAddCount = 0;
+    // private _blurArea:{w:number, h:number, x:number, y:number};
+    // /**模糊区域执行绘制的次数 */
+    // private _blurAddCount = 0;
 
     constructor(width:number, height:number, options:RainDropOptins){
         let s = this;
@@ -123,11 +123,11 @@ export class RainDrop{
         s._touchX = x;
         s._touchY = y;
         s._touchSize = size;
-        s._blurAddCount = 256;
-        if(x-size<s._blurArea.x || s._blurArea.x==-999)s._blurArea.x = x-size;
-        if(y-size<s._blurArea.y || s._blurArea.y==-999)s._blurArea.y = y-size;
-        if(x+size>s._blurArea.w+s._blurArea.x) s._blurArea.w = x+size - s._blurArea.x;
-        if(y+size>s._blurArea.h+s._blurArea.y) s._blurArea.h = y+size - s._blurArea.y;
+        // s._blurAddCount = 256;
+        // if(x-size<s._blurArea.x || s._blurArea.x==-999)s._blurArea.x = x-size;
+        // if(y-size<s._blurArea.y || s._blurArea.y==-999)s._blurArea.y = y-size;
+        // if(x+size>s._blurArea.w+s._blurArea.x) s._blurArea.w = x+size - s._blurArea.x;
+        // if(y+size>s._blurArea.h+s._blurArea.y) s._blurArea.h = y+size - s._blurArea.y;
     }
 
     public endErase(){
@@ -147,8 +147,8 @@ export class RainDrop{
     private initBlurArea(){
         let s = this;
         s._blurCtx.clearRect(0, 0, s._width, s._height);
-        s._blurArea = {x:0, y:0, w:s._width, h:s._height};
-        s._blurAddCount = 256;
+        // s._blurArea = {x:0, y:0, w:s._width, h:s._height};
+        // s._blurAddCount = 256;
         s._blurCtx.fillStyle = "#000000";
         s._blurCtx.beginPath();
         s._blurCtx.rect(0, 0, s._width, s._height);
@@ -158,19 +158,29 @@ export class RainDrop{
     private updateRain(){
         let s = this;
         //更新滤镜显示区域
-        if(s._blurLastRenderTimes>5 && s._blurAddCount>0)
+        // if(s._blurLastRenderTimes>1 && s._blurAddCount > 0)
+        // {
+        //     s._blurAddCount --;
+        //     s._blurCtx.globalCompositeOperation = "lighter";
+        //     s._blurCtx.fillStyle = "#000100ff";
+        //     s._blurCtx.beginPath();
+        //     s._blurCtx.fillRect(s._blurArea.x, s._blurArea.y, s._blurArea.w, s._blurArea.h);
+        //     s._blurCtx.fill();
+        //     s._blurLastRenderTimes = 0;
+        //     if(s._blurAddCount<=0){
+        //         s._blurArea.x = 0;
+        //         s._blurArea.y = 0;
+        //         s._blurArea.w = 0;
+        //         s._blurArea.h = 0;
+        //     }
+        // }
+        if(s._blurLastRenderTimes>3)
         {
-            s._blurAddCount --;
             s._blurCtx.globalCompositeOperation = "lighter";
             s._blurCtx.fillStyle = "#000100ff";
-            s._blurCtx.fillRect(s._blurArea.x, s._blurArea.y, s._blurArea.w, s._blurArea.h);
+            s._blurCtx.beginPath();
+            s._blurCtx.fillRect(0, 0, s._width, s._height);
             s._blurLastRenderTimes = 0;
-            if(s._blurAddCount<=0){
-                s._blurArea.x = 0;
-                s._blurArea.y = 0;
-                s._blurArea.w = 0;
-                s._blurArea.h = 0;
-            }
         }
         s._blurLastRenderTimes ++;
 
@@ -183,7 +193,7 @@ export class RainDrop{
         s.canvasCtx.drawImage(s.dropletCanvas, 0, 0, s._width, s._height);//将dropletCanvas中的图片绘制到canvas中
         //更新大雨滴的显示
         let count = 0;
-        let rainLimit = 6;//每次最多出现大雨滴的个数 6
+        let rainLimit = s._options.rainLimit;//每次最多出现大雨滴的个数 6
         let newRains = s._rains == s.rainsTemplate1?s.rainsTemplate2:s.rainsTemplate1;
         newRains.length = 0;
         while(ComUtils.random()<=0.1 && count<rainLimit){//随机出现
@@ -192,6 +202,8 @@ export class RainDrop{
             let r = ComUtils.random(s._options.rainSize.min, s._options.rainSize.max, n=>n*n);
             let rain = Rain.getRain();
             rain.set(ComUtils.random(s._width), ComUtils.random(s._height), r);
+            rain.spreadX = 1.5;
+            rain.spreadY = 1.5;
             s.initMomentum(rain);//初始化 动量
             newRains.push(rain);
         }
@@ -201,6 +213,8 @@ export class RainDrop{
             return va>vb?1:va==vb?0:-1;
         })
         s._rains.forEach((rain, i)=> {
+            let sizeScaleX = s._showRainSizeMult*(rain.spreadX+1);
+            let sizeScaleY = s._showRainSizeMult*(rain.spreadY+1);
             if(!rain.killed){
                 if(ComUtils.chance((rain.size-s._options.rainSize.min)/s._sizeDelt* 0.1) ){
                     rain.momentum += ComUtils.random(rain.size/s._options.rainSize.max * 10);
@@ -211,7 +225,7 @@ export class RainDrop{
                 }
                 rain.size -= rain.shrink;
                 if(s._touchSize>0){
-                    let size = rain.size*s._showRainSizeMult;
+                    let size = rain.size*sizeScaleX;
                     if(rain.x-size>s._touchX-s._touchSize  &&  rain.x+size <s._touchX+s._touchSize
                         && rain.y-size>s._touchY-s._touchSize && rain.y+size<s._touchY+s._touchSize){
                             rain.killed = true;
@@ -238,12 +252,15 @@ export class RainDrop{
                     // console.log("生成新的雨滴")
                     s.initMomentum(trailRain);
                     trailRain.parent = rain;
+                    // trailRain.spreadY = trailRain.momentum*0.1;
                     newRains.push(trailRain);
                     rain.size = rain.size - trailRain.size * 0.05;
                     rain.lastSpawn = 0;
                     rain.nextSpawn = s._options.rainSize.min/5 + s._options.rainSize.min/2*1/rain.momentum * ComUtils.random(2, 15);//ComUtils.random(s._options.rainSize.min, s._options.rainSize.max)/4 - rain.momentum *2 + (s._options.rainSize.max - rain.size)
                 }
             }
+            rain.spreadX *= 0.4;
+            rain.spreadY *= 0.7;
             if(rain.momentum>0){
                 if(rain.momentum>40)console.log(" momentum : "+rain.momentum)
                 rain.y += rain.momentum;
@@ -261,7 +278,7 @@ export class RainDrop{
                     if(r2.y>rain.size/2+rain.y)break;
                     if(r2 != rain && r2.size<rain.size && r2.killed == false && r2.parent != rain && rain.parent != r2){
                         let dis = ComUtils.distance(r2, rain);
-                        if(dis < (r2.size + rain.size)* s._showRainSizeMult){
+                        if(dis < (r2.size + rain.size)* sizeScaleX){
                             if(rain.size>s._options.rainSize.max)rain.size = s._options.rainSize.max;
                             s._rains.splice(m, 1)
                             r2.killed = true;
@@ -273,10 +290,16 @@ export class RainDrop{
             if(!rain.killed){
                 //清除小雨滴
                 s.dropletCtx.globalCompositeOperation = "destination-out";
-                let showSize = rain.size*s._showRainSizeMult;
-                s.dropletCtx.drawImage(s.clearRainCanvas, rain.x-showSize, rain.y-showSize*s._rainYScale, showSize*2, showSize*2*s._rainYScale);
+                let dropSizeX = rain.size*(1+rain.spreadX);
+                let dropSizeY = rain.size*(1+rain.spreadY);
+                let showSizeX = rain.size*sizeScaleX;
+                let showSizeY = rain.size*sizeScaleY;
+                s.dropletCtx.drawImage(s.clearRainCanvas, rain.x-showSizeX/2, rain.y-showSizeY/2*s._rainYScale, showSizeY, showSizeY*s._rainYScale);
+                //去掉雨滴位置的模糊效果
+                s._blurCtx.globalCompositeOperation = "destination-out";
+                s._blurCtx.drawImage(s.clearRainCanvas, rain.x-showSizeX/2, rain.y-showSizeY/2*s._rainYScale, showSizeY, showSizeY*s._rainYScale);
                 //显示雨滴
-                s.canvasCtx.drawImage(rain.canvas, rain.x-rain.size/2, rain.y-rain.size/2*s._rainYScale, rain.size, rain.size*s._rainYScale);
+                s.canvasCtx.drawImage(rain.canvas, rain.x-dropSizeX/2, rain.y-dropSizeY/2*s._rainYScale, dropSizeX, dropSizeY*s._rainYScale);
                 newRains.push(rain);
             }else{
                 s._rains.splice(i, 1)
@@ -306,6 +329,8 @@ export class RainDrop{
  * 雨滴生成器参数
  */
 export interface RainDropOptins{
+    /**每帧最多产生多少个雨滴 */
+    rainLimit:number,
     /**大雨滴的大小范围 */
     rainSize:{max:number, min:number},
     /**最多产生多少个大雨滴 */

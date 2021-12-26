@@ -47,8 +47,9 @@ export class App{
         let s = this;
         s._size = new GLArray([800, 800]);
         s._options = {
+            rainLimit:6,
             rainSize:{min:50, max:120},
-            maxRains:100,
+            maxRains:180,
             dropletSize:{min:2.5, max:5.5},
             dropletFrameNum:20,
         }

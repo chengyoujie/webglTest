@@ -24,7 +24,10 @@ export class Rain{
     public killed:boolean = false;
     /**是否是新产生的 */
     public isNew = false;
-
+    /**x方向扩展大小 */
+    public spreadX = 0;
+    /**y方向扩展大小 */
+    public spreadY = 0;
     
     public static RAIN_SIZE = 64;
     
@@ -89,6 +92,8 @@ export class Rain{
         s.shrink = 0;
         s.lastSpawn = 0;
         s.nextSpawn = 0;
+        s.spreadX  = 0;
+        s.spreadY = 0;
         s.parent = null;
 
         Rain._rains.push(s);
